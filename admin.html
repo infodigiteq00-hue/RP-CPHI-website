@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Meeting requests · RP Industries</title>
+  <link rel="icon" href="assets/rp-logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="admin">
+
+  <!-- LOGIN -->
+  <main class="login" id="loginView">
+    <form class="login__box" id="loginForm" novalidate>
+      <img src="assets/rp-logo.png" alt="RP Industries" width="302" height="386">
+      <h1>Admin login</h1>
+      <p class="muted">CPHI India 2026 meeting requests</p>
+      <div class="field">
+        <label for="loginId">ID</label>
+        <input id="loginId" name="username" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="loginPw">Password</label>
+        <input id="loginPw" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <p class="err" id="loginErr" hidden></p>
+      <button class="btn" type="submit" id="loginBtn">Sign in</button>
+    </form>
+  </main>
+
+  <!-- RESULTS -->
+  <div id="appView" hidden>
+    <header class="header">
+      <div class="wrap header__in">
+        <a href="index.html" class="logo"><img src="assets/rp-logo.png" alt="RP Industries" width="302" height="386"></a>
+        <div class="header__user">
+          <span class="muted" id="userName"></span>
+          <button class="link" type="button" id="logoutBtn">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap results">
+      <div class="results__head">
+        <div>
+          <div class="results__title">
+            <h1>Meeting requests</h1>
+            <div class="tabs tabs--view" id="viewTabs" role="tablist" aria-label="View">
+              <button class="tab" role="tab" type="button" data-view="requests" aria-selected="true">Requests</button>
+              <button class="tab" role="tab" type="button" data-view="slots" aria-selected="false">Availability</button>
+            </div>
+          </div>
+          <p class="muted" id="countLine">Loading…</p>
+        </div>
+        <div class="results__actions">
+          <button class="btn btn--outline btn--sm" type="button" id="refreshBtn">Refresh</button>
+          <button class="btn btn--sm" type="button" id="csvBtn">Download CSV</button>
+        </div>
+      </div>
+
+      <p class="err" id="loadErr" hidden></p>
+
+      <div id="requestsView">
+        <div class="toolbar">
+          <div class="tabs" id="dayTabs" role="tablist" aria-label="Filter by day"></div>
+          <div class="toolbar__right">
+            <input type="search" id="search" placeholder="Search name, company, email, product" aria-label="Search">
+            <select id="statusFilter" aria-label="Filter by status">
+              <option value="">All statuses</option>
+            </select>
+            <select id="sortBy" aria-label="Sort">
+              <option value="meeting">Sort by meeting time</option>
+              <option value="received">Newest first</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table" id="table">
+            <thead>
+              <tr>
+                <th>Meeting</th>
+                <th>Visitor</th>
+                <th>Contact</th>
+                <th>Products</th>
+                <th>Message</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+          <p class="empty" id="empty" hidden>No requests match.</p>
+        </div>
+      </div>
+
+      <div id="slotsView" hidden>
+        <p class="muted avail-note">Block a time when the team is busy or meeting someone who didn't book, and unblock it when you're free again. Visitors see blocked times as booked. Cancel a meeting to free its time for visitors.</p>
+        <div class="avail" id="avail"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/admin.js" defer></script>
+</body>
+</html>

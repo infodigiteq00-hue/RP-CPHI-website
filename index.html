@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RP Industries at CPHI India 2026 · Booth 2B59</title>
+  <meta name="description" content="Meet RP Industries, the world's No. 1 Prazole intermediate manufacturer, at CPHI India 2026. Booth 2B59, Hall 2, IICC Yashobhoomi, New Delhi, 23–25 November 2026.">
+  <meta name="theme-color" content="#003279">
+  <meta property="og:title" content="RP Industries at CPHI India 2026 · Booth 2B59, Hall 2">
+  <meta property="og:description" content="Book a meeting with us, 23–25 November 2026, IICC Yashobhoomi, New Delhi.">
+  <meta property="og:image" content="assets/india-gate.jpg">
+  <link rel="icon" href="assets/rp-logo.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="wrap header__in">
+      <a href="#" class="logo"><img src="assets/rp-logo.png" alt="RP Industries" width="302" height="386"></a>
+      <a class="btn btn--sm" href="#book">Book a meeting</a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <picture>
+      <source media="(max-width: 700px)" srcset="assets/india-gate-sm.webp" type="image/webp">
+      <source srcset="assets/india-gate.webp" type="image/webp">
+      <img src="assets/india-gate.jpg" alt="India Gate, New Delhi, at dusk" width="1600" height="727">
+    </picture>
+    <div class="wrap hero__in">
+      <p class="hero__pre">CPHI India 2026</p>
+      <h1>World's No. 1<br><span class="hl">Prazole Intermediate</span><br>Manufacturer</h1>
+      <p class="hero__sub">Meet us in New Delhi, 23–25 November. Book a 30&#8209;minute slot with our team.</p>
+      <a class="btn btn--light" href="#book">Book a meeting</a>
+    </div>
+  </section>
+
+  <section class="info">
+    <div class="wrap info__in">
+      <div><span>Booth</span><strong>2B59, Hall 2</strong></div>
+      <div><span>Dates</span><strong>23–25 November 2026</strong></div>
+      <div><span>Venue</span><strong>IICC Yashobhoomi, Dwarka, New Delhi</strong></div>
+    </div>
+  </section>
+
+  <main class="book" id="book">
+    <div class="wrap wrap--narrow">
+      <h2>Book a meeting</h2>
+      <p class="lead">Choose a day and time. All times are India Standard Time (GMT+5:30).</p>
+
+      <form id="bookForm" novalidate>
+        <div class="days" id="days" role="radiogroup" aria-label="Day"></div>
+        <p class="err" id="takenErr" role="alert" hidden>Sorry, that time was just booked by someone else. Please choose another slot.</p>
+
+        <div id="slots" role="radiogroup" aria-label="Time slot"></div>
+        <p class="err" id="slotErr" hidden>Please choose a time slot.</p>
+
+        <div class="fields">
+          <div class="field">
+            <label for="name">Name</label>
+            <input id="name" name="name" autocomplete="name" required>
+            <p class="err" hidden>Please enter your name.</p>
+          </div>
+          <div class="field">
+            <label for="company">Company</label>
+            <input id="company" name="company" autocomplete="organization" required>
+            <p class="err" hidden>Please enter your company name.</p>
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" autocomplete="email" required>
+            <p class="err" hidden>Please enter a valid email address.</p>
+          </div>
+          <div class="field">
+            <label for="country">Country</label>
+            <select id="country" name="country" autocomplete="country-name" required></select>
+            <p class="err" hidden>Please choose your country.</p>
+          </div>
+          <div class="field">
+            <label for="phone">Phone</label>
+            <div class="phone">
+              <span id="dialCode">+91</span>
+              <input id="phone" name="phone" type="tel" autocomplete="tel-national" required>
+            </div>
+            <p class="err" hidden>Please enter a valid phone number.</p>
+          </div>
+          <div class="field">
+            <label for="products">Products of interest</label>
+            <input id="products" name="products" required>
+            <p class="err" hidden>Please tell us which products.</p>
+          </div>
+          <div class="field field--full">
+            <label for="message">Message <span class="opt">(optional)</span></label>
+            <textarea id="message" name="message" rows="4"></textarea>
+          </div>
+          <div class="hp" aria-hidden="true">
+            <label for="website">Website</label>
+            <input id="website" name="website" tabindex="-1" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="submit">
+          <p class="summary" id="summary">No slot selected</p>
+          <button class="btn" type="submit" id="submitBtn">Request meeting</button>
+        </div>
+        <p class="err" id="sendErr" hidden>Your request could not be sent. Please try again.</p>
+      </form>
+
+      <div class="done" id="done" hidden tabindex="-1">
+        <h2>Thank you</h2>
+        <p id="doneText"></p>
+        <p>
+          <button class="link" type="button" id="icsBtn">Add to calendar</button>
+          <span class="sep">·</span>
+          <button class="link" type="button" id="againBtn">Book another slot</button>
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer__in">
+      <p>© 2026 RP Industries · Quality Matters First</p>
+      <p>CPHI India 2026 · Booth 2B59, Hall 2</p>
+    </div>
+  </footer>
+
+  <script src="js/config.js"></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>
