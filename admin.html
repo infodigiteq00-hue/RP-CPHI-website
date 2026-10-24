@@ -50,10 +50,12 @@
         <div>
           <div class="results__title">
             <h1>Meeting requests</h1>
-            <div class="tabs tabs--view" id="viewTabs" role="tablist" aria-label="View">
-              <button class="tab" role="tab" type="button" data-view="requests" aria-selected="true">Requests</button>
-              <button class="tab" role="tab" type="button" data-view="slots" aria-selected="false">Availability</button>
-            </div>
+            <label class="expo-pick"><span class="sr-only">Expo</span><select id="expoSelect" aria-label="Expo"></select></label>
+          </div>
+          <div class="tabs tabs--view" id="viewTabs" role="tablist" aria-label="View">
+            <button class="tab" role="tab" type="button" data-view="requests" aria-selected="true">Requests</button>
+            <button class="tab" role="tab" type="button" data-view="slots" aria-selected="false">Availability</button>
+            <button class="tab" role="tab" type="button" data-view="settings" aria-selected="false">Expo settings</button>
           </div>
           <p class="muted" id="countLine">Loading…</p>
         </div>
@@ -97,6 +99,9 @@
           <p class="empty" id="empty" hidden>No requests match.</p>
         </div>
       </div>
+
+      <!-- expo settings: drawn by js/expos.js -->
+      <div id="settingsView" hidden></div>
 
       <div id="slotsView" hidden>
         <p class="muted avail-note">Block a time when the team is busy or meeting someone who didn't book, and unblock it when you're free again. Visitors see blocked times as booked. Cancel a meeting to free its time for visitors.</p>
@@ -247,5 +252,6 @@
   <script src="js/admin.js" defer></script>
   <script src="js/minutes.js" defer></script>
   <script src="js/followup.js" defer></script>
+  <script src="js/expos.js" defer></script>
 </body>
 </html>

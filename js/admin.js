@@ -1,22 +1,52 @@
-// RP Industries · CPHI meeting requests admin
+// RP Industries · expo meeting requests admin. Everything shown is for the expo picked at the top.
 
 const API = (window.RP_CONFIG && window.RP_CONFIG.API_URL) || "";
-const DAYS = [
-  { id: "2026-11-23", label: "Mon 23" },
-  { id: "2026-11-24", label: "Tue 24" },
-  { id: "2026-11-25", label: "Wed 25" },
-];
-// 30-minute slots, IST (same as js/main.js and Code.gs)
-const SLOTS = ["10:30", "11:00", "11:30", "12:00", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30"];
 const TOKEN_KEY = "rp_admin_token";
 const USER_KEY = "rp_admin_user";
 const VIEW_KEY = "rp_admin_view";
+const EXPO_KEY = "rp_admin_expo";
 
 const $ = (s) => document.querySelector(s);
 const state = {
   rows: [], blocked: [], statuses: ["New", "Confirmed", "Completed", "Cancelled"], day: "", q: "", status: "", sort: "meeting",
   view: "requests", blocking: "", busy: "", // blocking: slot whose reason box is open; busy: slot being saved
+  expos: [], expoId: "", catalogue: [],      // every expo's settings (from the server) and the one picked
 };
+
+// CPHI India 2026 as an older Apps Script (before expos) runs it: shown until Code.gs is updated
+const OLD_SCRIPT_EXPO = {
+  id: "cphi-india-2026", name: "CPHI India 2026", status: "Active", isDefault: true,
+  headline: "World's No. 1 Prazole Intermediate Manufacturer", highlight: "Prazole Intermediate",
+  subline: "Meet us in New Delhi, 23–25 November. Book a 30‑minute slot with our team.", booth: "2B59", hall: "Hall 2",
+  venue: "IICC Yashobhoomi, Dwarka, New Delhi", banner: "", timezone: "Asia/Kolkata", tzLabel: "IST",
+  days: ["2026-11-23", "2026-11-24", "2026-11-25"], start: "10:30", end: "18:00", slotMinutes: 30,
+  breaks: [{ start: "12:30", end: "13:00", label: "Lunch" }],
+  slots: ["10:30", "11:00", "11:30", "12:00", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30"],
+  fields: [
+    { key: "name", label: "Name", type: "text", show: true, required: true, core: true },
+    { key: "company", label: "Company", type: "text", show: true, required: true, builtin: true },
+    { key: "email", label: "Email", type: "email", show: true, required: true, core: true },
+    { key: "country", label: "Country", type: "country", show: true, required: true, builtin: true },
+    { key: "phone", label: "Phone", type: "phone", show: true, required: true, builtin: true },
+    { key: "products", label: "Products of interest", type: "products", show: true, required: true, builtin: true },
+    { key: "message", label: "Message", type: "longtext", show: true, required: false, builtin: true },
+  ],
+  products: ["Apremilast", "Bilastine", "Carvedilol", "Dapagliflozin", "Dexlansoprazole", "Diminazene", "Empagliflozin", "Grapiprant",
+    "Ilaprazole", "Itopride", "Lansoprazole", "Maribavir", "Mebeverine", "Mesalamine", "Nimorazole", "Omeprazole", "Pantoprazole",
+    "Paroxetine", "Quetiapine", "Rabeprazole", "Terbinafine", "Theobromine", "Topiramate", "Trazodone", "Triclabendazole"]
+    .map((n) => `${n} intermediates`)
+    .concat(["Dexlansoprazole", "Esomeprazole Magnesium (3H₂O)", "Ilaprazole", "Lansoprazole", "Omeprazole", "Omeprazole Magnesium",
+      "Pantoprazole Sodium", "Paroxetine"].map((n) => `${n} API`)),
+};
+
+// the expo picked at the top, its requests, and its days as tabs ("Mon 23")
+const curExpo = () => state.expos.find((e) => e.id === state.expoId) || null;
+const expoRows = () => state.rows.filter((r) => r.expo === state.expoId);
+const expoDays = () => (curExpo() ? curExpo().days : []).map((d) => ({ id: d, label: fmtDayShort(d) }));
+function fmtDayShort(d) {
+  const [y, m, day] = d.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, day)).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", timeZone: "UTC" });
+}
 
 // everything visitors typed goes through this before it reaches the page
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -28,14 +58,20 @@ function fmt12(hhmm) {
   h = h % 12 || 12;
   return `${h}:${String(m).padStart(2, "0")} ${ap}`;
 }
-function fmtRange(hhmm) {
+function fmtRange(hhmm, minutes = (curExpo() || {}).slotMinutes || 30) {
   const [h, m] = hhmm.split(":").map(Number);
-  const end = h * 60 + m + 30;
+  const end = h * 60 + m + minutes;
   const [a, ap] = fmt12(hhmm).split(" ");
   const [b, bp] = fmt12(`${Math.floor(end / 60)}:${end % 60}`).split(" ");
   return ap === bp ? `${a} – ${b} ${bp}` : `${a} ${ap} – ${b} ${bp}`;
 }
-const slotTime = (r) => (SLOTS.includes(r.slot) ? fmtRange(r.slot) : r.time.replace(/ IST$/, ""));
+// the meeting's time as saved with it, with its time zone: "10:30 – 11:00 AM IST"
+const slotTime = (r) => r.time || fmtRange(r.slot);
+// "CPHI India 2026, Booth 2B59, Hall 2" for a request
+function expoLine(r) {
+  const e = state.expos.find((x) => x.id === r.expo);
+  return e ? [e.name, e.booth && `Booth ${e.booth}`, e.hall].filter(Boolean).join(", ") : "";
+}
 
 const store = {
   get: (k) => { try { return sessionStorage.getItem(k); } catch { return null; } },
@@ -118,6 +154,17 @@ async function load() {
     state.rows = r.rows || [];
     state.blocked = r.blocked || [];
     if (r.statuses) state.statuses = r.statuses;
+    // an Apps Script from before expos sends no expos: everything is CPHI India 2026
+    state.expos = r.expos || [OLD_SCRIPT_EXPO];
+    state.oldScript = !r.expos;
+    state.catalogue = r.catalogue || OLD_SCRIPT_EXPO.products;
+    state.rows.forEach((x) => { x.expo = x.expo || "cphi-india-2026"; x.extra = x.extra || []; });
+    state.blocked.forEach((x) => { x.expo = x.expo || "cphi-india-2026"; });
+    if (!curExpo()) {
+      const pick = store.get(EXPO_KEY);
+      state.expoId = (state.expos.find((e) => e.id === pick) || state.expos.find((e) => e.isDefault && e.status === "Active") || state.expos[0] || {}).id || "";
+    }
+    renderExpoSelect();
     renderFilters();
     render();
   } catch (ex) {
@@ -131,11 +178,35 @@ async function load() {
 }
 $("#refreshBtn").addEventListener("click", load);
 
+// ---------- expo picker ----------
+function renderExpoSelect() {
+  const active = state.expos.filter((e) => e.status === "Active");
+  const archived = state.expos.filter((e) => e.status !== "Active");
+  const opt = (e) => `<option value="${esc(e.id)}"${e.id === state.expoId ? " selected" : ""}>${esc(e.name)}${e.isDefault ? " (default)" : ""}</option>`;
+  $("#expoSelect").innerHTML = active.map(opt).join("") +
+    (archived.length ? `<optgroup label="Archived">${archived.map(opt).join("")}</optgroup>` : "");
+}
+function pickExpo(id) {
+  state.expoId = id;
+  store.set(EXPO_KEY, id);
+  state.day = "";
+  state.blocking = "";
+  renderExpoSelect();
+  renderFilters();
+  render();
+}
+$("#expoSelect").addEventListener("change", (e) => {
+  if (state.view === "settings" && typeof settingsDirty === "function" && settingsDirty() &&
+      !confirm("You have unsaved changes to this expo. Switch anyway?")) { renderExpoSelect(); return; }
+  pickExpo(e.target.value);
+});
+
 // keep the list current: reload every minute and when the tab comes back into view,
 // but not while someone is typing a block reason or changing a status
 function autoRefresh() {
   if (document.hidden || $("#appView").hidden || !store.get(TOKEN_KEY)) return;
   if (document.querySelector("dialog[open]")) return; // don't redraw under an open pop-up
+  if (state.view === "settings") return;              // or under expo settings being edited
   const f = document.activeElement;
   if (f && f.matches("#rows select, #avail input, #avail select, #avail textarea")) return;
   load();
@@ -144,9 +215,9 @@ setInterval(autoRefresh, 60000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) autoRefresh(); });
 
 function renderFilters() {
-  const active = state.rows.filter((r) => r.status !== "Cancelled");
+  const active = expoRows().filter((r) => r.status !== "Cancelled");
   const count = (d) => active.filter((r) => !d || r.date === d).length;
-  $("#dayTabs").innerHTML = [{ id: "", label: "All days" }, ...DAYS]
+  $("#dayTabs").innerHTML = [{ id: "", label: "All days" }, ...expoDays()]
     .map((d) => `<button class="tab" role="tab" type="button" data-day="${d.id}" aria-selected="${state.day === d.id}">${d.label}<span>${count(d.id)}</span></button>`)
     .join("");
   const sel = $("#statusFilter");
@@ -168,10 +239,11 @@ $("#sortBy").addEventListener("change", (e) => { state.sort = e.target.value; re
 
 function visibleRows() {
   const q = state.q;
-  const rows = state.rows.filter((r) =>
+  const rows = expoRows().filter((r) =>
     (!state.day || r.date === state.day) &&
     (!state.status || r.status === state.status) &&
-    (!q || [r.name, r.company, r.email, r.phone, r.country, r.products, r.message, r.id].join(" ").toLowerCase().includes(q))
+    (!q || [r.name, r.company, r.email, r.phone, r.country, r.products, r.message, r.id, ...(r.extra || []).map((x) => x.value)]
+      .join(" ").toLowerCase().includes(q))
   );
   const meetingKey = (r) => `${r.date} ${r.slot}`;
   rows.sort((a, b) => state.sort === "received"
@@ -187,29 +259,36 @@ function fmtDay(d) {
 
 // ---------- views ----------
 function showView(view) {
-  state.view = view === "slots" ? "slots" : "requests";
+  state.view = ["slots", "settings"].includes(view) ? view : "requests";
   store.set(VIEW_KEY, state.view);
   $("#viewTabs").querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.view === state.view)));
   $("#requestsView").hidden = state.view !== "requests";
   $("#slotsView").hidden = state.view !== "slots";
+  $("#settingsView").hidden = state.view !== "settings";
   $("#csvBtn").hidden = state.view !== "requests";
+  $("#refreshBtn").hidden = state.view === "settings";
   if (!$("#appView").hidden) render();
 }
 $("#viewTabs").addEventListener("click", (e) => {
   const b = e.target.closest(".tab");
-  if (b) showView(b.dataset.view);
+  if (!b) return;
+  if (state.view === "settings" && b.dataset.view !== "settings" && typeof settingsDirty === "function" && settingsDirty() &&
+      !confirm("You have unsaved changes to this expo. Leave anyway?")) return;
+  showView(b.dataset.view);
 });
 
 function render() {
   if (state.view === "slots") return renderAvail();
+  if (state.view === "settings") return renderSettings(); // js/expos.js
   const rows = visibleRows();
+  const all = expoRows();
   // two or more live requests for the same slot
   const taken = {};
-  state.rows.forEach((r) => { if (r.status !== "Cancelled") { const k = `${r.date} ${r.slot}`; taken[k] = (taken[k] || 0) + 1; } });
+  all.forEach((r) => { if (r.status !== "Cancelled") { const k = `${r.date} ${r.slot}`; taken[k] = (taken[k] || 0) + 1; } });
 
-  const total = state.rows.length;
-  const newCount = state.rows.filter((r) => r.status === "New").length;
-  const doneCount = state.rows.filter((r) => r.status === "Completed").length;
+  const total = all.length;
+  const newCount = all.filter((r) => r.status === "New").length;
+  const doneCount = all.filter((r) => r.status === "Completed").length;
   $("#countLine").textContent = total
     ? `${total} request${total === 1 ? "" : "s"} · ${newCount} new · ${doneCount} completed · showing ${rows.length}`
     : "No requests yet.";
@@ -226,7 +305,8 @@ function render() {
       <td data-label="Visitor"><strong>${esc(r.name)}</strong><small>${esc(r.company)}</small><small>${esc(r.country)}</small></td>
       <td data-label="Contact"><a href="mailto:${esc(r.email)}">${esc(r.email)}</a><small><a href="tel:${esc(tel)}">${esc(r.phone)}</a></small></td>
       <td data-label="Products">${esc(r.products)}</td>
-      <td class="c-msg" data-label="Message"><p>${esc(r.message) || "—"}</p></td>
+      <td class="c-msg" data-label="Message"><p>${esc(r.message) || "—"}</p>${(r.extra || []).map((x) =>
+        `<p class="extra"><span>${esc(x.label)}</span> ${esc(x.value)}</p>`).join("")}</td>
       <td data-label="Status">
         <select class="status" data-id="${esc(r.id)}" data-v="${esc(r.status)}" aria-label="Status for ${esc(r.name)}"${state.busy === r.id ? " disabled" : ""}>
           ${state.statuses.map((s) => `<option${s === r.status ? " selected" : ""}>${esc(s)}</option>`).join("")}
@@ -311,15 +391,17 @@ $("#rows").addEventListener("click", (e) => {
 
 // ---------- availability ----------
 function renderAvail() {
+  const expo = curExpo();
+  if (!expo) { $("#avail").innerHTML = ""; return; }
   const booked = {};
-  state.rows.forEach((r) => { if (r.status !== "Cancelled") (booked[`${r.date} ${r.slot}`] = booked[`${r.date} ${r.slot}`] || []).push(r); });
+  expoRows().forEach((r) => { if (r.status !== "Cancelled") (booked[`${r.date} ${r.slot}`] = booked[`${r.date} ${r.slot}`] || []).push(r); });
   const blocked = {};
-  state.blocked.forEach((b) => { blocked[`${b.date} ${b.slot}`] = b; });
+  state.blocked.filter((b) => b.expo === expo.id).forEach((b) => { blocked[`${b.date} ${b.slot}`] = b; });
   const n = { free: 0, booked: 0, blocked: 0 };
 
-  $("#avail").innerHTML = DAYS.map((d) => `<section class="avail__day">
+  $("#avail").innerHTML = expoDays().map((d) => `<section class="avail__day">
       <h2>${esc(fmtDay(d.id))}</h2>
-      ${SLOTS.map((t) => {
+      ${expo.slots.map((t) => {
         const k = `${d.id} ${t}`;
         const at = `data-day="${d.id}" data-slot="${t}"`;
         const time = `<span class="avail__time">${fmtRange(t)}</span>`;
@@ -381,7 +463,7 @@ async function saveBlock(action, date, slot, reason = "") {
   state.busy = `${date} ${slot}`;
   render();
   try {
-    const r = await api(action, { token: store.get(TOKEN_KEY), date, slot, reason });
+    const r = await api(action, { token: store.get(TOKEN_KEY), expo: state.expoId, date, slot, reason });
     if (!r.ok) throw new Error(r.error);
     state.blocked = r.blocked || [];
   } catch (ex) {
@@ -400,13 +482,18 @@ $("#csvBtn").addEventListener("click", () => {
   const cols = [["ID", "id"], ["Received (IST)", "received"], ["Meeting date", "date"], ["Meeting time", "time"], ["Name", "name"],
     ["Company", "company"], ["Email", "email"], ["Country", "country"], ["Phone", "phone"], ["Products", "products"],
     ["Message", "message"], ["Status", "status"], ["Minutes", "minutes"], ["Follow-up", "followup"], ["Follow-up sent (IST)", "followupSentAt"]];
+  // a column for each of this expo's own questions
+  const extraLabels = [];
+  visibleRows().forEach((r) => (r.extra || []).forEach((x) => { if (!extraLabels.includes(x.label)) extraLabels.push(x.label); }));
+  extraLabels.forEach((l) => cols.splice(cols.length - 4, 0, [l, `extra:${l}`]));
   // quote every cell, and stop spreadsheet apps from running cells that start like a formula
   const cell = (v) => { let s = String(v ?? ""); if (/^[=+\-@]/.test(s)) s = "'" + s; return `"${s.replace(/"/g, '""')}"`; };
-  const value = (r, k) => (k === "time" ? `${slotTime(r)} IST` : r[k]);
+  const value = (r, k) => (k === "time" ? slotTime(r)
+    : k.startsWith("extra:") ? ((r.extra || []).find((x) => x.label === k.slice(6)) || {}).value || "" : r[k]);
   const csv = [cols.map((c) => cell(c[0])), ...visibleRows().map((r) => cols.map((c) => cell(value(r, c[1]))))].map((l) => l.join(",")).join("\r\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
-  a.download = `rp-cphi-requests-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `rp-${state.expoId || "expo"}-requests-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });

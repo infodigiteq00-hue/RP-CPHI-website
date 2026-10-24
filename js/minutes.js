@@ -338,7 +338,7 @@ $("#editNotesBtn").addEventListener("click", () => {
 function minutesText() {
   const m = currentRecord.minutes;
   const r = current;
-  const lines = [`Minutes of meeting`, `${r.name}, ${r.company} (${r.country})`, `${fmtDay(r.date)}, ${slotTime(r)} IST · CPHI India 2026, Booth 2B59, Hall 2`, ""];
+  const lines = [`Minutes of meeting`, `${r.name}, ${r.company} (${r.country})`, `${fmtDay(r.date)}, ${slotTime(r)} · ${expoLine(r)}`, ""];
   const list = (title, items) => { if (items && items.length) lines.push(title, ...items.map((i) => `- ${i}`), ""); };
   lines.push("Summary", m.summary, "");
   if (m.outcome) lines.push("Outcome", `${m.outcome}${m.outcome_reason ? `. ${m.outcome_reason}` : ""}`, "");
@@ -385,7 +385,7 @@ $("#printMinutesBtn").addEventListener("click", () => {
     </style></head><body>
     <header><div><h1>Minutes of meeting</h1>
       <p>${esc(r.name)}, ${esc(r.company)} (${esc(r.country)})</p>
-      <p>${esc(fmtDay(r.date))}, ${esc(slotTime(r))} IST · CPHI India 2026, Booth 2B59, Hall 2</p></div>
+      <p>${esc(fmtDay(r.date))}, ${esc(slotTime(r))} · ${esc(expoLine(r))}</p></div>
       <img src="${new URL("assets/rp-logo.png", location.href)}" alt="RP Industries"></header>
     ${doc.innerHTML}
     <footer>RP Industries · Quality Matters First</footer>
