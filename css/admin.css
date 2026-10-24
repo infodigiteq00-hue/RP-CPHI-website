@@ -211,11 +211,6 @@ tr.is-cancelled td:not(:last-child) { opacity: .5; }
 .tabs--modal { width: max-content; margin: 14px 24px 0; }
 .tabs--modal .tab { padding: 7px 16px; }
 #followupEdit .field + .field { margin-top: 16px; }
-.fu-products { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.fu-product { display: inline-flex; align-items: center; gap: 6px; padding: 4px 4px 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: #fff; font-size: 14px; }
-.fu-product button { width: 22px; height: 22px; border: 0; border-radius: 3px; background: none; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
-.fu-product button:hover { background: var(--bg-soft); color: var(--red); }
-#fuAddProduct { height: 40px; max-width: 100%; padding: 0 32px 0 12px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23667085' stroke-width='1.6'/%3E%3C/svg%3E") right 11px center / 10px no-repeat; -webkit-appearance: none; appearance: none; }
 .fu-head { margin: 0 0 12px; display: grid; gap: 6px; font-size: 14px; }
 .fu-head div { display: grid; grid-template-columns: 70px 1fr; gap: 10px; }
 .fu-head dt { color: var(--muted); }

@@ -92,7 +92,7 @@ function showFollowup(f) {
   const sent = f.status === "Sent";
   $("#fuSubject").value = f.subject || "";
   $("#fuMessage").value = f.message || "";
-  renderProducts();
+  renderPreview();
   $("#fuState").textContent = sent
     ? `Sent ${f.sentAt} IST${f.sentBy ? `, marked by ${f.sentBy}` : ""}`
     : f.updated ? `Draft saved ${f.updated.slice(11)}` : "";
@@ -106,12 +106,8 @@ function showFollowup(f) {
 // ---------- the email as the client will get it ----------
 function emailParts() {
   const row = findRow(fu.id);
+  // just the message and the signature: no product list (the message already says what was discussed)
   const lines = [`Dear ${row.name},`, "", $("#fuMessage").value.trim()];
-  const ints = fu.products.filter((p) => p.endsWith(" intermediates")).map((p) => p.replace(/ intermediates$/, ""));
-  const apis = fu.products.filter((p) => p.endsWith(" API")).map((p) => p.replace(/ API$/, ""));
-  if (ints.length || apis.length) lines.push("");
-  if (ints.length) lines.push(`Intermediates we can supply: ${ints.join(", ")}`);
-  if (apis.length) lines.push(`APIs we can supply: ${apis.join(", ")}`);
   lines.push("", "Warm regards,", ...((fu.followup && fu.followup.signature) || ["Team RP Industries"]));
   return { to: row.email, subject: $("#fuSubject").value.trim(), body: lines.join("\n") };
 }
@@ -123,25 +119,6 @@ function renderPreview() {
   $("#fuPrevBody").textContent = m.body;
 }
 
-function renderProducts() {
-  $("#fuProducts").innerHTML = fu.products.length
-    ? fu.products.map((p) => `<span class="fu-product">${esc(p)}<button type="button" data-remove="${esc(p)}" aria-label="Remove ${esc(p)}">&times;</button></span>`).join("")
-    : `<span class="muted">No products listed.</span>`;
-  const rest = fu.catalogue.filter((p) => !fu.products.includes(p));
-  $("#fuAddProduct").innerHTML = `<option value="">Add a product…</option>` + rest.map((p) => `<option>${esc(p)}</option>`).join("");
-  renderPreview();
-}
-
-$("#fuProducts").addEventListener("click", (e) => {
-  const b = e.target.closest("button[data-remove]");
-  if (!b) return;
-  fu.products = fu.products.filter((p) => p !== b.dataset.remove);
-  renderProducts();
-});
-$("#fuAddProduct").addEventListener("change", (e) => {
-  if (e.target.value) fu.products.push(e.target.value);
-  renderProducts();
-});
 
 $("#followupTabs").addEventListener("click", (e) => {
   const b = e.target.closest(".tab");
