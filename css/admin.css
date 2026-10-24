@@ -85,8 +85,25 @@ tr.is-cancelled td:not(:last-child) { opacity: .5; }
 .avail__row .link:disabled { color: var(--muted); text-decoration: none; cursor: default; }
 .link--muted { color: var(--muted); }
 .link--danger { color: var(--red); }
-.row-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px; }
-.row-actions .link { font-size: 13px; text-align: left; }
+/* status column: the status select with the meeting's next actions under it, all one width */
+.table td[data-label="Status"] { width: 172px; }
+.table td[data-label="Status"] .status { width: 100%; }
+.row-actions { display: grid; gap: 6px; margin-top: 8px; }
+.act {
+  height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff;
+  font-size: 13px; font-weight: 600; color: var(--navy); cursor: pointer; white-space: nowrap;
+  transition: background-color .15s, border-color .15s, color .15s;
+}
+.act:hover { border-color: var(--navy); }
+.act:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.act--primary { background: var(--navy); border-color: var(--navy); color: #fff; }
+.act--primary:hover { background: var(--navy-dark); }
+.act--danger { color: var(--red); }
+.act--danger:hover { border-color: var(--red); }
+.act--quiet { height: 26px; border-color: transparent; background: none; color: var(--muted); font-weight: 500; }
+.act--quiet:hover { border-color: transparent; color: var(--navy); }
+.act--quiet.act--danger:hover { color: var(--red); }
+.act:disabled { opacity: .6; cursor: default; }
 .status[data-v="Completed"] { color: var(--muted); }
 .avail__form { flex-wrap: wrap; row-gap: 8px; padding: 10px 14px; }
 .avail__form .avail__time { width: 100%; }
@@ -121,6 +138,7 @@ tr.is-cancelled td:not(:last-child) { opacity: .5; }
   .c-meeting { font-size: 15px; padding-bottom: 10px !important; margin-bottom: 4px; border-bottom: 1px solid var(--line) !important; }
   .c-msg { max-width: none; }
   .status { width: 100%; }
+  .table td[data-label="Status"] { width: auto; }
 }
 
 /* pop-ups: mark complete, minutes of meeting */

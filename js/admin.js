@@ -242,20 +242,21 @@ function render() {
 // links under the status: what can be done with this meeting next
 function rowActions(r) {
   const id = esc(r.id);
-  const link = (act, label, cls = "") => `<button class="link${cls}" type="button" data-act="${act}" data-id="${id}">${label}</button>`;
+  // kind: "primary" (the next thing to do), "" (plain button) or "quiet" / "quiet danger" (text only)
+  const btn = (act, label, kind = "") => `<button class="act${kind ? kind.split(" ").map((k) => ` act--${k}`).join("") : ""}" type="button" data-act="${act}" data-id="${id}">${label}</button>`;
   if (r.status === "Cancelled") return "";
   if (r.status !== "Completed") {
-    return `<div class="row-actions">${link("complete", "Mark complete")}${link("cancel-meeting", "Cancel meeting", " link--danger")}</div>`;
+    return `<div class="row-actions">${btn("complete", "Mark complete", "primary")}${btn("cancel-meeting", "Cancel meeting", "quiet danger")}</div>`;
   }
   const m = r.minutes || "None";
   if (m === "Ready") {
     const f = followupLabel(r); // js/followup.js
-    const cls = r.followup === "Sent" ? " link--muted" : r.followup === "Failed" ? " link--danger" : "";
-    return `<div class="row-actions">${link("minutes", "View minutes")}${link("followup", esc(f), cls)}</div>`;
+    const kind = r.followup === "Sent" ? "quiet" : r.followup === "Failed" ? "danger" : "primary";
+    return `<div class="row-actions">${btn("minutes", "View minutes")}${btn("followup", esc(f), kind)}</div>`;
   }
-  if (m === "Processing" || m === "Pending") return `<div class="row-actions">${link("minutes", "Writing minutes…", " link--muted")}</div>`;
-  if (m === "Failed") return `<div class="row-actions">${link("retry-minutes", "Minutes failed · Retry", " link--danger")}</div>`;
-  return `<div class="row-actions">${link("add-notes", "Add notes")}</div>`;
+  if (m === "Processing" || m === "Pending") return `<div class="row-actions">${btn("minutes", "Writing minutes…", "quiet")}</div>`;
+  if (m === "Failed") return `<div class="row-actions">${btn("retry-minutes", "Minutes failed · Retry", "danger")}</div>`;
+  return `<div class="row-actions">${btn("add-notes", "Add notes", "primary")}</div>`;
 }
 
 // ---------- status ----------
