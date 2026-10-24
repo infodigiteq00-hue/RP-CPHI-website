@@ -2,7 +2,7 @@
 // Loaded after admin.js and uses its api(), esc(), state, store, fmtDay() and slotTime().
 
 const MAX_REC_SECONDS = 10 * 60;
-const MAX_AUDIO_MB = 20;
+const MAX_AUDIO_MB = 14;
 const COMPLETE_ERRORS = {
   busy: "The sheet is busy. Try again in a moment.",
   cancelled: "This meeting was cancelled, so it can't be marked complete.",
