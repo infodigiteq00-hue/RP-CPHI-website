@@ -14,7 +14,7 @@ const VIEW_KEY = "rp_admin_view";
 
 const $ = (s) => document.querySelector(s);
 const state = {
-  rows: [], blocked: [], statuses: ["New", "Confirmed", "Done", "Cancelled"], day: "", q: "", status: "", sort: "meeting",
+  rows: [], blocked: [], statuses: ["New", "Confirmed", "Completed", "Cancelled"], day: "", q: "", status: "", sort: "meeting",
   view: "requests", blocking: "", busy: "", // blocking: slot whose reason box is open; busy: slot being saved
 };
 
@@ -135,6 +135,7 @@ $("#refreshBtn").addEventListener("click", load);
 // but not while someone is typing a block reason or changing a status
 function autoRefresh() {
   if (document.hidden || $("#appView").hidden || !store.get(TOKEN_KEY)) return;
+  if (document.querySelector("dialog[open]")) return; // don't redraw under an open pop-up
   const f = document.activeElement;
   if (f && f.matches("#rows select, #avail input, #avail select, #avail textarea")) return;
   load();
@@ -208,8 +209,9 @@ function render() {
 
   const total = state.rows.length;
   const newCount = state.rows.filter((r) => r.status === "New").length;
+  const doneCount = state.rows.filter((r) => r.status === "Completed").length;
   $("#countLine").textContent = total
-    ? `${total} request${total === 1 ? "" : "s"} · ${newCount} new · showing ${rows.length}`
+    ? `${total} request${total === 1 ? "" : "s"} · ${newCount} new · ${doneCount} completed · showing ${rows.length}`
     : "No requests yet.";
 
   $("#rows").innerHTML = rows.map((r) => {
@@ -229,12 +231,31 @@ function render() {
         <select class="status" data-id="${esc(r.id)}" data-v="${esc(r.status)}" aria-label="Status for ${esc(r.name)}"${state.busy === r.id ? " disabled" : ""}>
           ${state.statuses.map((s) => `<option${s === r.status ? " selected" : ""}>${esc(s)}</option>`).join("")}
         </select>
-        ${r.status !== "Cancelled" ? `<button class="link link--danger" type="button" data-act="cancel-meeting" data-id="${esc(r.id)}">Cancel meeting</button>` : ""}
+        ${rowActions(r)}
       </td>
     </tr>`;
   }).join("");
   $("#empty").hidden = rows.length > 0 || !total;
   $("#table").hidden = rows.length === 0;
+}
+
+// links under the status: what can be done with this meeting next
+function rowActions(r) {
+  const id = esc(r.id);
+  const link = (act, label, cls = "") => `<button class="link${cls}" type="button" data-act="${act}" data-id="${id}">${label}</button>`;
+  if (r.status === "Cancelled") return "";
+  if (r.status !== "Completed") {
+    return `<div class="row-actions">${link("complete", "Mark complete")}${link("cancel-meeting", "Cancel meeting", " link--danger")}</div>`;
+  }
+  const m = r.minutes || "None";
+  if (m === "Ready") {
+    const f = followupLabel(r); // js/followup.js
+    const cls = r.followup === "Sent" ? " link--muted" : r.followup === "Failed" ? " link--danger" : "";
+    return `<div class="row-actions">${link("minutes", "View minutes")}${link("followup", esc(f), cls)}</div>`;
+  }
+  if (m === "Processing" || m === "Pending") return `<div class="row-actions">${link("minutes", "Writing minutes…", " link--muted")}</div>`;
+  if (m === "Failed") return `<div class="row-actions">${link("retry-minutes", "Minutes failed · Retry", " link--danger")}</div>`;
+  return `<div class="row-actions">${link("add-notes", "Add notes")}</div>`;
 }
 
 // ---------- status ----------
@@ -272,7 +293,15 @@ function cancelMeeting(id) {
 
 $("#rows").addEventListener("change", (e) => {
   const sel = e.target.closest(".status");
-  if (sel) saveStatus(sel.dataset.id, sel.value);
+  if (!sel) return;
+  const row = state.rows.find((r) => r.id === sel.dataset.id);
+  // completing goes through the notes pop-up (js/minutes.js), not straight to the sheet
+  if (sel.value === "Completed" && row && row.status !== "Completed") {
+    sel.value = row.status;
+    openComplete(row.id);
+    return;
+  }
+  saveStatus(sel.dataset.id, sel.value);
 });
 $("#rows").addEventListener("click", (e) => {
   const b = e.target.closest('button[data-act="cancel-meeting"]');
@@ -298,12 +327,13 @@ function renderAvail() {
           n.booked++;
           const who = booked[k].map((r) => r.company || r.name).join(", ");
           // normally one booking per slot; older clashing rows each get their own button
-          const cancel = booked[k].map((r) => {
+          const cancel = booked[k].filter((r) => r.status !== "Completed").map((r) => {
             const label = booked[k].length > 1 ? `Cancel ${esc(r.company || r.name)}` : "Cancel meeting";
             const saving = state.busy === r.id;
             return `<button class="link link--danger" type="button" data-act="cancel-meeting" data-id="${esc(r.id)}"${saving ? " disabled" : ""}>${saving ? "Saving…" : label}</button>`;
           }).join("");
-          return `<div class="avail__row is-booked">${time}<span class="avail__state" title="${esc(who)}">Booked · ${esc(who)}</span>${cancel}</div>`;
+          const label = booked[k].every((r) => r.status === "Completed") ? "Completed" : "Booked";
+          return `<div class="avail__row is-booked">${time}<span class="avail__state" title="${esc(who)}">${label} · ${esc(who)}</span>${cancel}</div>`;
         }
         if (blocked[k]) {
           n.blocked++;
@@ -368,7 +398,7 @@ async function saveBlock(action, date, slot, reason = "") {
 $("#csvBtn").addEventListener("click", () => {
   const cols = [["ID", "id"], ["Received (IST)", "received"], ["Meeting date", "date"], ["Meeting time", "time"], ["Name", "name"],
     ["Company", "company"], ["Email", "email"], ["Country", "country"], ["Phone", "phone"], ["Products", "products"],
-    ["Message", "message"], ["Status", "status"]];
+    ["Message", "message"], ["Status", "status"], ["Minutes", "minutes"], ["Follow-up", "followup"], ["Follow-up sent (IST)", "followupSentAt"]];
   // quote every cell, and stop spreadsheet apps from running cells that start like a formula
   const cell = (v) => { let s = String(v ?? ""); if (/^[=+\-@]/.test(s)) s = "'" + s; return `"${s.replace(/"/g, '""')}"`; };
   const value = (r, k) => (k === "time" ? `${slotTime(r)} IST` : r[k]);

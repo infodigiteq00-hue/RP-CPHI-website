@@ -89,9 +89,12 @@
             <p class="err" hidden>Please enter a valid phone number.</p>
           </div>
           <div class="field">
-            <label for="products">Products of interest</label>
-            <input id="products" name="products" required>
-            <p class="err" hidden>Please tell us which products.</p>
+            <label for="productPick">Products of interest <span class="opt">(choose one or more)</span></label>
+            <select id="productPick"></select>
+            <div class="picked" id="picked" aria-live="polite"></div>
+            <input id="productsOther" maxlength="200" placeholder="Other product or CAS number" aria-label="Other product" hidden>
+            <input type="hidden" id="products" name="products">
+            <p class="err" hidden>Please choose at least one product.</p>
           </div>
           <div class="field field--full">
             <label for="message">Message <span class="opt">(optional)</span></label>

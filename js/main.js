@@ -188,6 +188,61 @@ function renderCountries() {
   });
 }
 
+// ---------- products of interest ----------
+// What RP Industries makes, A to Z (same list as CATALOGUE in apps-script/Code.gs)
+const PRODUCTS = {
+  intermediates: ["Apremilast", "Bilastine", "Carvedilol", "Dapagliflozin", "Dexlansoprazole", "Diminazene", "Empagliflozin",
+    "Grapiprant", "Ilaprazole", "Itopride", "Lansoprazole", "Maribavir", "Mebeverine", "Mesalamine", "Nimorazole", "Omeprazole",
+    "Pantoprazole", "Paroxetine", "Quetiapine", "Rabeprazole", "Terbinafine", "Theobromine", "Topiramate", "Trazodone",
+    "Triclabendazole"],
+  apis: ["Dexlansoprazole", "Esomeprazole Magnesium (3H₂O)", "Ilaprazole", "Lansoprazole", "Omeprazole", "Omeprazole Magnesium",
+    "Pantoprazole Sodium", "Paroxetine"],
+};
+const picked = []; // e.g. "Omeprazole intermediates", "Pantoprazole Sodium API"
+
+function renderProductPick() {
+  const opt = (value, label) => (picked.includes(value) ? "" : `<option value="${value}">${label}</option>`);
+  $("#productPick").innerHTML = `<option value="">${picked.length ? "Add another product" : "Choose a product"}</option>` +
+    `<optgroup label="Intermediates">${PRODUCTS.intermediates.map((n) => opt(`${n} intermediates`, n)).join("")}</optgroup>` +
+    `<optgroup label="APIs">${PRODUCTS.apis.map((n) => opt(`${n} API`, n)).join("")}</optgroup>` +
+    `<option value="other"${$("#productsOther").hidden ? "" : " disabled"}>Other (type it in)</option>`;
+  $("#picked").innerHTML = picked.map((p) =>
+    `<span class="picked__item">${p}<button type="button" data-remove="${p}" aria-label="Remove ${p}">&times;</button></span>`).join("");
+  syncProducts();
+}
+
+// the hidden #products field holds the answer as one line, which is what gets sent
+function syncProducts() {
+  const other = $("#productsOther").hidden ? "" : $("#productsOther").value.trim();
+  $("#products").value = picked.concat(other ? [other] : []).join(", ");
+  if ($("#products").closest(".field").classList.contains("invalid")) check("products");
+}
+
+$("#productPick").addEventListener("change", (e) => {
+  const v = e.target.value;
+  if (v === "other") {
+    $("#productsOther").hidden = false;
+    $("#productsOther").focus();
+  } else if (v && !picked.includes(v)) {
+    picked.push(v);
+  }
+  renderProductPick();
+});
+$("#picked").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-remove]");
+  if (!b) return;
+  picked.splice(picked.indexOf(b.dataset.remove), 1);
+  renderProductPick();
+});
+$("#productsOther").addEventListener("input", syncProducts);
+
+function resetProducts() {
+  picked.length = 0;
+  $("#productsOther").value = "";
+  $("#productsOther").hidden = true;
+  renderProductPick();
+}
+
 // ---------- validation ----------
 const rules = {
   name: (v) => v.trim().length > 1,
@@ -208,7 +263,7 @@ function check(id) {
   return ok;
 }
 
-Object.keys(rules).forEach((id) => {
+Object.keys(rules).filter((id) => id !== "products").forEach((id) => { // products: see syncProducts()
   const input = document.getElementById(id);
   input.addEventListener("blur", () => { if (input.value) check(id); });
   input.addEventListener("input", () => { if (input.closest(".field").classList.contains("invalid")) check(id); });
@@ -225,7 +280,7 @@ form.addEventListener("submit", async (e) => {
   const bad = Object.keys(rules).filter((id) => !check(id));
 
   if (!slotOk) { $("#slots").scrollIntoView({ block: "center" }); return; }
-  if (bad.length) { document.getElementById(bad[0]).focus(); return; }
+  if (bad.length) { document.getElementById(bad[0] === "products" ? "productPick" : bad[0]).focus(); return; }
 
   const v = (id) => document.getElementById(id).value.trim();
   const payload = {
@@ -286,6 +341,7 @@ function showDone(p) {
 
 $("#againBtn").addEventListener("click", () => {
   form.reset();
+  resetProducts();
   $("#country").value = "India";
   $("#dialCode").textContent = "+91";
   state.slot = null;
@@ -319,5 +375,6 @@ $("#icsBtn").addEventListener("click", () => {
 });
 
 renderCountries();
+renderProductPick();
 renderDays();
 loadTaken();

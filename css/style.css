@@ -108,6 +108,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .field .phone input { height: 46px; border: 0; border-radius: 0; box-shadow: none; }
 
 .invalid input, .invalid select, .invalid .phone { border-color: var(--red); }
+.picked { display: flex; flex-wrap: wrap; gap: 6px; }
+.picked:empty { display: none; }
+.picked__item { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 10px; border: 1px solid var(--line); border-radius: 4px; font-size: 14px; background: #fff; }
+.picked__item button { width: 24px; height: 24px; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--muted); font-size: 17px; line-height: 1; cursor: pointer; }
+.picked__item button:hover { background: var(--bg-soft); color: var(--red); }
+#productsOther { margin-top: 2px; }
 .err { margin: 4px 0 0; font-size: 13px; color: var(--red); }
 
 .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }

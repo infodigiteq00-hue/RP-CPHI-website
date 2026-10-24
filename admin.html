@@ -105,7 +105,152 @@
     </main>
   </div>
 
+  <!-- mark complete: voice note and/or notes -->
+  <dialog class="modal" id="completeDialog" aria-labelledby="completeTitle">
+    <form method="dialog" class="modal__in" id="completeForm" novalidate>
+      <div class="modal__head">
+        <div>
+          <h2 id="completeTitle">Mark meeting complete</h2>
+          <p class="muted" id="completeWho"></p>
+        </div>
+        <button class="modal__close" type="button" data-close aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal__body" id="completeBody">
+        <p class="modal__lead">How did the meeting go? Talk us through what you discussed, the client's main points, and any next steps. Record one voice note, type it, or both. We'll turn it into minutes.</p>
+
+        <div class="voice" id="voice">
+          <p class="label">Voice note</p>
+          <div class="voice__idle" id="voiceIdle">
+            <button class="btn btn--sm" type="button" id="recBtn">Record voice note</button>
+            <label class="link voice__upload">or upload a recording<input type="file" id="audioFile" accept="audio/*" hidden></label>
+          </div>
+          <div class="voice__rec" id="voiceRec" hidden>
+            <span class="voice__dot" aria-hidden="true"></span>
+            <span>Recording <b id="recTime">0:00</b> <span class="muted">/ 10:00</span></span>
+            <button class="btn btn--sm" type="button" id="stopBtn">Stop</button>
+          </div>
+          <div class="voice__done" id="voiceDone" hidden>
+            <audio controls id="voicePlayer" preload="metadata"></audio>
+            <div class="voice__actions">
+              <button class="link" type="button" id="reRecBtn">Record again</button>
+              <button class="link link--danger" type="button" id="removeVoiceBtn">Remove</button>
+            </div>
+          </div>
+          <p class="muted voice__note" id="voiceNote" hidden></p>
+        </div>
+
+        <div class="field">
+          <label for="notesInput">Notes <span class="opt">(optional if you recorded a voice note)</span></label>
+          <textarea id="notesInput" rows="5" maxlength="10000" placeholder="e.g. Met their purchase head. They buy Omeprazole intermediates from China today, need around 500 kg a month, asked for COA and samples. Follow up next week."></textarea>
+        </div>
+        <p class="err" id="completeErr" hidden></p>
+      </div>
+
+      <div class="modal__progress" id="completeProgress" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <p id="progressText">Saving…</p>
+      </div>
+
+      <div class="modal__foot" id="completeFoot">
+        <button class="link link--muted" type="button" id="skipNotesBtn">Mark complete without notes</button>
+        <button class="btn" type="submit" id="saveCompleteBtn">Save and write minutes</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- minutes of meeting -->
+  <dialog class="modal modal--wide" id="minutesDialog" aria-labelledby="minutesTitle">
+    <div class="modal__in">
+      <div class="modal__head">
+        <div>
+          <h2 id="minutesTitle">Minutes of meeting</h2>
+          <p class="muted" id="minutesWho"></p>
+        </div>
+        <button class="modal__close" type="button" data-close aria-label="Close">&times;</button>
+      </div>
+      <div class="modal__body" id="minutesBody"></div>
+      <div class="modal__foot modal__foot--split">
+        <div class="modal__links">
+          <button class="link" type="button" id="editNotesBtn">Edit notes</button>
+          <button class="link" type="button" id="regenBtn">Write again</button>
+        </div>
+        <div class="modal__links">
+          <button class="btn btn--outline btn--sm" type="button" id="followupBtn" hidden>Follow-up email</button>
+          <button class="btn btn--outline btn--sm" type="button" id="copyMinutesBtn">Copy</button>
+          <button class="btn btn--sm" type="button" id="printMinutesBtn">Print / PDF</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- follow-up email: review, edit, send -->
+  <dialog class="modal modal--wide" id="followupDialog" aria-labelledby="followupTitle">
+    <div class="modal__in">
+      <div class="modal__head">
+        <div>
+          <h2 id="followupTitle">Follow-up email</h2>
+          <p class="muted" id="followupTo"></p>
+        </div>
+        <button class="modal__close" type="button" data-close aria-label="Close">&times;</button>
+      </div>
+      <div class="tabs tabs--modal" id="followupTabs" role="tablist" aria-label="Follow-up view">
+        <button class="tab" role="tab" type="button" data-fview="edit" aria-selected="true">Edit</button>
+        <button class="tab" role="tab" type="button" data-fview="preview" aria-selected="false">Preview</button>
+      </div>
+      <div class="modal__body" id="followupBody">
+        <div id="followupEdit">
+          <div class="field">
+            <label for="fuSubject">Subject</label>
+            <input id="fuSubject" maxlength="200">
+          </div>
+          <div class="field">
+            <label for="fuMessage">Message <span class="opt">("Dear name," and the signature are added for you)</span></label>
+            <textarea id="fuMessage" rows="10" maxlength="6000"></textarea>
+          </div>
+          <div class="field">
+            <span class="label">Products in the email</span>
+            <div class="fu-products" id="fuProducts"></div>
+            <select id="fuAddProduct" aria-label="Add a product"></select>
+          </div>
+        </div>
+        <div id="followupPreview" hidden>
+          <dl class="fu-head">
+            <div><dt>To</dt><dd id="fuPrevTo"></dd></div>
+            <div><dt>Subject</dt><dd id="fuPrevSubject"></dd></div>
+          </dl>
+          <pre class="fu-text" id="fuPrevBody"></pre>
+        </div>
+        <div class="fu-sentcheck" id="fuSentCheck" hidden>
+          <p>The email is open in your mail. <strong>Did you send it?</strong></p>
+          <div class="modal__links">
+            <button class="btn btn--sm" type="button" id="fuMarkSentBtn">Yes, mark as sent</button>
+            <button class="link link--muted" type="button" id="fuNotSentBtn">Not yet</button>
+          </div>
+        </div>
+        <div class="modal__progress" id="followupProgress" hidden>
+          <span class="spinner" aria-hidden="true"></span>
+          <p id="followupProgressText">Writing the follow-up email…</p>
+        </div>
+        <p class="err" id="followupErr" hidden></p>
+      </div>
+      <div class="modal__foot modal__foot--split" id="followupFoot">
+        <div class="modal__links">
+          <button class="link" type="button" id="fuRedraftBtn">Write again</button>
+          <span class="muted fu-state" id="fuState"></span>
+        </div>
+        <div class="modal__links">
+          <button class="btn btn--outline btn--sm" type="button" id="fuSaveBtn">Save draft</button>
+          <button class="btn btn--outline btn--sm" type="button" id="fuMailAppBtn">Open in email app</button>
+          <button class="btn btn--sm" type="button" id="fuGmailBtn">Open in Gmail</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
   <script src="js/config.js"></script>
   <script src="js/admin.js" defer></script>
+  <script src="js/minutes.js" defer></script>
+  <script src="js/followup.js" defer></script>
 </body>
 </html>
