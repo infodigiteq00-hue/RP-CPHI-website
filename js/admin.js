@@ -9,6 +9,7 @@ const EXPO_KEY = "rp_admin_expo";
 const $ = (s) => document.querySelector(s);
 const state = {
   rows: [], blocked: [], statuses: ["New", "Confirmed", "Completed", "Cancelled"], day: "", q: "", status: "", sort: "meeting",
+  schedDay: "", schedQ: "",                  // Scheduled view: day tab and search
   view: "requests", blocking: "", busy: "", // blocking: slot whose reason box is open; busy: slot being saved
   expos: [], expoId: "", catalogue: [],      // every expo's settings (from the server) and the one picked
 };
@@ -190,6 +191,7 @@ function pickExpo(id) {
   state.expoId = id;
   store.set(EXPO_KEY, id);
   state.day = "";
+  state.schedDay = "";
   state.blocking = "";
   renderExpoSelect();
   renderFilters();
@@ -259,13 +261,15 @@ function fmtDay(d) {
 
 // ---------- views ----------
 function showView(view) {
-  state.view = ["slots", "settings"].includes(view) ? view : "requests";
+  state.view = ["scheduled", "slots", "settings"].includes(view) ? view : "requests";
   store.set(VIEW_KEY, state.view);
+  try { history.replaceState(null, "", `#${state.view}`); } catch {} // admin.html#scheduled opens this view
   $("#viewTabs").querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.view === state.view)));
   $("#requestsView").hidden = state.view !== "requests";
+  $("#scheduledView").hidden = state.view !== "scheduled";
   $("#slotsView").hidden = state.view !== "slots";
   $("#settingsView").hidden = state.view !== "settings";
-  $("#csvBtn").hidden = state.view !== "requests";
+  $("#csvBtn").hidden = !["requests", "scheduled"].includes(state.view);
   $("#refreshBtn").hidden = state.view === "settings";
   if (!$("#appView").hidden) render();
 }
@@ -279,6 +283,7 @@ $("#viewTabs").addEventListener("click", (e) => {
 
 function render() {
   if (state.view === "slots") return renderAvail();
+  if (state.view === "scheduled") return renderScheduled();
   if (state.view === "settings") return renderSettings(); // js/expos.js
   const rows = visibleRows();
   const all = expoRows();
@@ -325,9 +330,7 @@ function rowActions(r) {
   // kind: "primary" (the next thing to do), "" (plain button) or "quiet" / "quiet danger" (text only)
   const btn = (act, label, kind = "") => `<button class="act${kind ? kind.split(" ").map((k) => ` act--${k}`).join("") : ""}" type="button" data-act="${act}" data-id="${id}">${label}</button>`;
   if (r.status === "Cancelled") return "";
-  if (r.status !== "Completed") {
-    return `<div class="row-actions">${btn("complete", "Mark complete", "primary")}${btn("cancel-meeting", "Cancel meeting", "quiet danger")}</div>`;
-  }
+  if (r.status !== "Completed") return `<div class="row-actions">${meetingButtons(r)}</div>`;
   const m = r.minutes || "None";
   if (m === "Ready") {
     const f = followupLabel(r); // js/followup.js
@@ -338,6 +341,104 @@ function rowActions(r) {
   if (m === "Failed") return `<div class="row-actions">${btn("retry-minutes", "Minutes failed · Retry", "danger")}</div>`;
   return `<div class="row-actions">${btn("add-notes", "Add notes", "primary")}</div>`;
 }
+
+// a meeting that hasn't happened yet: notes while it runs (js/ink.js), then complete or cancel it
+function meetingButtons(r) {
+  const id = esc(r.id);
+  return `<button class="act act--primary" type="button" data-act="complete" data-id="${id}">Mark complete</button>` +
+    `<button class="act" type="button" data-act="take-notes" data-id="${id}">${r.minutes === "Draft" ? "Open notes" : "Take notes"}</button>` +
+    `<button class="act act--quiet act--danger" type="button" data-act="cancel-meeting" data-id="${id}">Cancel meeting</button>`;
+}
+
+// ---------- scheduled: confirmed meetings only ----------
+const scheduledRows = () => expoRows().filter((r) => r.status === "Confirmed")
+  .sort((a, b) => `${a.date} ${a.slot}`.localeCompare(`${b.date} ${b.slot}`));
+
+// the date and time at the expo now: { date: "2026-11-23", min: 630 }
+function expoNow(tz) {
+  try {
+    const p = {};
+    new Intl.DateTimeFormat("en-CA", { timeZone: tz || "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date()).forEach((x) => { p[x.type] = x.value; });
+    return { date: `${p.year}-${p.month}-${p.day}`, min: Number(p.hour) * 60 + Number(p.minute) };
+  } catch { return null; }
+}
+
+function renderScheduled() {
+  const expo = curExpo() || {};
+  const all = scheduledRows();
+  const q = state.schedQ;
+  const count = (d) => all.filter((r) => !d || r.date === d).length;
+  $("#schedDays").innerHTML = [{ id: "", label: "All days" }, ...expoDays()]
+    .map((d) => `<button class="tab" role="tab" type="button" data-sday="${d.id}" aria-selected="${state.schedDay === d.id}">${d.label}<span>${count(d.id)}</span></button>`)
+    .join("");
+
+  // on now, next up, or over but not marked complete yet
+  const now = expoNow(expo.timezone);
+  const len = expo.slotMinutes || 30;
+  const flags = {};
+  let next = false;
+  if (now) all.forEach((r) => {
+    const [h, m] = r.slot.split(":").map(Number);
+    const start = h * 60 + m;
+    if (r.date < now.date || (r.date === now.date && start + len <= now.min)) flags[r.id] = "past";
+    else if (r.date === now.date && start <= now.min) flags[r.id] = "now";
+    else if (!next) { flags[r.id] = "next"; next = true; }
+  });
+  const FLAG = { now: "On now", next: "Next", past: "Over · mark it complete" };
+
+  const rows = all.filter((r) => (!state.schedDay || r.date === state.schedDay) &&
+    (!q || [r.name, r.company, r.email, r.phone, r.country, r.products, r.message, r.id, ...(r.extra || []).map((x) => x.value)]
+      .join(" ").toLowerCase().includes(q)));
+  const today = now ? all.filter((r) => r.date === now.date).length : 0;
+  $("#countLine").textContent = all.length
+    ? `${all.length} confirmed meeting${all.length === 1 ? "" : "s"}${today ? ` · ${today} today` : ""}${rows.length !== all.length ? ` · showing ${rows.length}` : ""}`
+    : "No confirmed meetings yet.";
+
+  // the labels this expo's booking form uses
+  const label = (key, def) => ((expo.fields || []).find((f) => f.key === key) || {}).label || def;
+  const card = (r) => {
+    const tel = String(r.phone || "").replace(/[^\d+]/g, "");
+    const info = [
+      [label("email", "Email"), r.email && `<a href="mailto:${esc(r.email)}">${esc(r.email)}</a>`],
+      [label("phone", "Phone"), r.phone && `<a href="tel:${esc(tel)}">${esc(r.phone)}</a>`],
+      [label("products", "Products of interest"), esc(r.products)],
+      [label("message", "Message"), r.message && `<span class="pre">${esc(r.message)}</span>`],
+      ...(r.extra || []).map((x) => [x.label, `<span class="pre">${esc(x.value)}</span>`]),
+    ].filter((x) => x[1]);
+    const f = flags[r.id];
+    return `<article class="meet${f ? ` is-${f}` : ""}">
+      <div class="meet__when"><strong>${esc(slotTime(r))}</strong>${f ? `<span class="meet__flag">${FLAG[f]}</span>` : ""}</div>
+      <div class="meet__main">
+        <h3>${esc(r.name)}</h3>
+        <p class="meet__co">${[r.company, r.country].filter(Boolean).map(esc).join(" · ")}</p>
+        ${info.length ? `<dl class="meet__info">${info.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join("")}</dl>` : ""}
+        <small class="muted">Booked ${esc(r.received)} · ${esc(r.id)}</small>
+      </div>
+      <div class="meet__actions">${meetingButtons(r)}</div>
+    </article>`;
+  };
+  const days = [...new Set(rows.map((r) => r.date))];
+  $("#sched").innerHTML = rows.length
+    ? days.map((d) => {
+      const list = rows.filter((r) => r.date === d);
+      return `<section class="sched__day"><h2>${esc(fmtDay(d))} <span>${list.length} meeting${list.length === 1 ? "" : "s"}</span></h2>${list.map(card).join("")}</section>`;
+    }).join("")
+    : `<p class="empty sched__empty">${all.length ? "No confirmed meetings match."
+      : "No confirmed meetings yet. When you set a request to Confirmed on the Requests tab, it shows here."}</p>`;
+}
+
+$("#schedDays").addEventListener("click", (e) => {
+  const b = e.target.closest(".tab");
+  if (!b) return;
+  state.schedDay = b.dataset.sday;
+  render();
+});
+$("#schedSearch").addEventListener("input", (e) => { state.schedQ = e.target.value.trim().toLowerCase(); render(); });
+$("#sched").addEventListener("click", (e) => {
+  const b = e.target.closest('button[data-act="cancel-meeting"]');
+  if (b) cancelMeeting(b.dataset.id);
+});
 
 // ---------- status ----------
 async function saveStatus(id, status) {
@@ -483,22 +584,23 @@ $("#csvBtn").addEventListener("click", () => {
     ["Company", "company"], ["Email", "email"], ["Country", "country"], ["Phone", "phone"], ["Products", "products"],
     ["Message", "message"], ["Status", "status"], ["Minutes", "minutes"], ["Follow-up", "followup"], ["Follow-up sent (IST)", "followupSentAt"]];
   // a column for each of this expo's own questions
+  const list = state.view === "scheduled" ? scheduledRows() : visibleRows();
   const extraLabels = [];
-  visibleRows().forEach((r) => (r.extra || []).forEach((x) => { if (!extraLabels.includes(x.label)) extraLabels.push(x.label); }));
+  list.forEach((r) => (r.extra || []).forEach((x) => { if (!extraLabels.includes(x.label)) extraLabels.push(x.label); }));
   extraLabels.forEach((l) => cols.splice(cols.length - 4, 0, [l, `extra:${l}`]));
   // quote every cell, and stop spreadsheet apps from running cells that start like a formula
   const cell = (v) => { let s = String(v ?? ""); if (/^[=+\-@]/.test(s)) s = "'" + s; return `"${s.replace(/"/g, '""')}"`; };
   const value = (r, k) => (k === "time" ? slotTime(r)
     : k.startsWith("extra:") ? ((r.extra || []).find((x) => x.label === k.slice(6)) || {}).value || "" : r[k]);
-  const csv = [cols.map((c) => cell(c[0])), ...visibleRows().map((r) => cols.map((c) => cell(value(r, c[1]))))].map((l) => l.join(",")).join("\r\n");
+  const csv = [cols.map((c) => cell(c[0])), ...list.map((r) => cols.map((c) => cell(value(r, c[1]))))].map((l) => l.join(",")).join("\r\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
-  a.download = `rp-${state.expoId || "expo"}-requests-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `rp-${state.expoId || "expo"}-${state.view === "scheduled" ? "scheduled" : "requests"}-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });
 
 // ---------- start ----------
-showView(store.get(VIEW_KEY));
+showView(location.hash.slice(1) || store.get(VIEW_KEY));
 if (store.get(TOKEN_KEY)) showApp();
 else $("#loginId").focus();

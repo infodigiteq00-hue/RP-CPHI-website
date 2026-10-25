@@ -26,6 +26,8 @@ async function openComplete(id) {
   resetVoice();
   $("#completeWho").textContent = meetingLine(current);
   $("#notesInput").value = "";
+  $("#notesInput").readOnly = false;
+  $("#saveCompleteBtn").disabled = false;
   $("#voiceNote").hidden = true; // left over from the last meeting otherwise
   $("#completeErr").hidden = true;
   showProgress(false);
@@ -33,17 +35,35 @@ async function openComplete(id) {
   $("#completeTitle").textContent = current.status === "Completed" ? "Meeting notes" : "Mark meeting complete";
   $("#completeDialog").showModal();
   if (current.minutes && current.minutes !== "None") {
-    // editing: start from what was saved
+    // editing, or notes taken during the meeting ("Draft"): start from what was saved.
+    // The box is locked until they arrive, so the saved notes never land on top of typing.
+    const box = $("#notesInput");
+    const hint = box.placeholder;
+    box.readOnly = true;
+    box.placeholder = "Loading saved notes…";
+    $("#saveCompleteBtn").disabled = true;
     try {
       const r = await api("record", { token: store.get(TOKEN_KEY), id });
+      if (!current || current.id !== id || !$("#completeDialog").open) return; // closed or moved on meanwhile
       if (r.ok && r.record) {
-        $("#notesInput").value = r.record.notes || "";
+        const saved = r.record.notes || "";
+        const typed = box.value.trim();
+        box.value = typed && !saved.includes(typed) ? (saved ? `${saved}\n\n${typed}` : typed) : saved || typed;
+        if (r.record.notes) $("#skipNotesBtn").hidden = true; // would throw away the notes
         if (r.record.hasAudio) {
           $("#voiceNote").textContent = "A voice note is already saved. Record a new one only to replace it.";
           $("#voiceNote").hidden = false;
         }
       }
-    } catch {}
+    } catch {
+      // keep whatever is in the box
+    } finally {
+      if (current && current.id === id) {
+        box.readOnly = false;
+        box.placeholder = hint;
+        $("#saveCompleteBtn").disabled = false;
+      }
+    }
   }
 }
 
@@ -181,7 +201,7 @@ async function saveCompletion(withNotes) {
     return showCompleteError("Stop the recording first.");
   }
   const notes = withNotes ? $("#notesInput").value.trim() : "";
-  const hasOld = current.minutes && current.minutes !== "None";
+  const hasOld = current.minutes && !["None", "Draft"].includes(current.minutes);
   if (withNotes && !notes && !voice.blob && !hasOld) {
     return showCompleteError("Record a voice note or type some notes, or choose “Mark complete without notes”.");
   }
