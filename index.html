@@ -14,21 +14,34 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="/css/style.css?v=20261027-8">
-</head>
-<body>
+  <link rel="stylesheet" href="/css/style.css?v=20261027-10">
   <script>
+    // This page is RP Industries' page until a link's own settings arrive. On any link but RP's / and /invite,
+    // nothing of RP's (logo, banner, title, tab icon, colours) is shown meanwhile: on a repeat visit the
+    // company's own colours, title and icon are applied straight away from this device.
     (function () {
       var segs = location.pathname.split('/').filter(Boolean);
-      // a company's dashboard: /xyz/admin
-      if (segs[1] === 'admin') { location.replace('/admin?c=' + encodeURIComponent(segs[0])); return; } // not admin.html: that redirects, and can't open offline
-      // any link but RP's / and /invite: hide RP's built-in text until that page's own settings arrive
-      var key = segs.filter(function (s) { return s !== 'index.html'; }).join('/') || new URLSearchParams(location.search).get('expo') || '';
+      // a company's dashboard: /xyz/admin (not admin.html: that redirects, and can't open offline)
+      if (segs[1] === 'admin') { location.replace('/admin?c=' + encodeURIComponent(segs[0])); return; }
+      var q = new URLSearchParams(location.search);
+      var key = segs.filter(function (s) { return s !== 'index.html'; }).join('/') || [q.get('c'), q.get('expo')].filter(Boolean).join('/');
       if (key === 'invite') key = '';
-      if (key) document.title = 'Book a meeting';
-      try { if (key && !localStorage.getItem('bk_' + key)) document.body.classList.add('expo-loading'); } catch (e) { if (key) document.body.classList.add('expo-loading'); }
+      if (!key) return;
+      var html = document.documentElement;
+      html.className += ' co-page expo-loading';
+      document.title = 'Book a meeting';
+      var look = null;
+      try { look = (JSON.parse(localStorage.getItem('bk_' + key) || 'null') || {}).look || null; } catch (e) {}
+      if (look) {
+        for (var k in look.vars) html.style.setProperty(k, look.vars[k]);
+        if (look.title) document.title = look.title;
+      }
+      var icon = document.querySelector('link[rel="icon"]');
+      if (icon) icon.href = look && look.logo ? look.logo : 'data:,';
     })();
   </script>
+</head>
+<body>
 
   <p class="preview-note" id="previewNote" hidden>Preview: this booking page isn't live yet, so nothing can be booked.</p>
 
@@ -45,6 +58,14 @@
       <source srcset="/assets/india-gate.webp" type="image/webp">
       <img src="/assets/india-gate.jpg" alt="India Gate, New Delhi, at dusk" width="1600" height="727">
     </picture>
+    <script>
+      // a company's page: don't fetch RP's India Gate photo (js/main.js puts it back for RP's own expos)
+      if (/\bco-page\b/.test(document.documentElement.className)) {
+        var pic = document.getElementById('heroPicture');
+        pic.querySelectorAll('source').forEach(function (s) { s.remove(); });
+        pic.querySelector('img').removeAttribute('src');
+      }
+    </script>
     <div class="wrap hero__in">
       <p class="hero__pre" id="heroPre">CPHI India 2026</p>
       <h1 id="heroTitle">World's No. 1<br><span class="hl">Prazole Intermediate</span><br>Manufacturer</h1>
@@ -107,8 +128,8 @@
     </div>
   </footer>
 
-  <script src="/js/config.js?v=20261027-8"></script>
-  <script src="/js/brand.js?v=20261027-8" defer></script>
-  <script src="/js/main.js?v=20261027-8" defer></script>
+  <script src="/js/config.js?v=20261027-10"></script>
+  <script src="/js/brand.js?v=20261027-10" defer></script>
+  <script src="/js/main.js?v=20261027-10" defer></script>
 </body>
 </html>

@@ -134,6 +134,13 @@ function brandPage(c) {
   const who = (c.profile && c.profile.shortName) || c.name;
   document.title = `Meeting requests · ${who}`;
   $("#homeLink").href = isRP() ? "index.html" : `/${COMPANY_ID}`;
+  // for the next visit: the page looks like the company from its first moment (admin.html reads it)
+  if (!isRP()) store.set(`${KEY_PREFIX}_look`, JSON.stringify(Object.assign(window.Brand.look(c, document.title),
+    { company: { id: c.id, name: c.name, brand: c.brand, profile: { shortName: c.profile.shortName, tagline: c.profile.tagline } } })));
+}
+// the company's look from the last visit, straight away (the server's follows)
+if (!isRP()) {
+  try { const l = JSON.parse(store.get(`${KEY_PREFIX}_look`) || "null"); if (l && l.company) brandPage(l.company); } catch {}
 }
 (async () => {
   if (isRP() || !API) return;

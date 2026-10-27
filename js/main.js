@@ -129,8 +129,9 @@ async function loadExpo() {
     if (r.company) applyCompany(r.company);
     if (!r.ok) return showClosed(r.error, r.name);
     state.preview = !!r.preview;
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ expo: r.expo, company: r.company })); } catch {}
     applyExpo(r.expo, r.unavailable || {}, r.company);
+    // kept for the next visit: shown at once, and the company's colours, title and icon before anything else
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ expo: r.expo, company: r.company, look: window.Brand.look(r.company, document.title) })); } catch {}
   } catch (err) {
     console.error("Couldn't load the expo", err);
     if (!cached) showClosed("network");
@@ -148,7 +149,7 @@ function applyCompany(c) {
 }
 
 function showClosed(why, name) {
-  document.body.classList.remove("expo-loading");
+  document.documentElement.classList.remove("expo-loading");
   const msg = {
     expo_closed: `Bookings for ${name || "this expo"} are closed.`,
     company_paused: `Bookings with ${name || "this company"} are closed right now.`,
@@ -180,7 +181,7 @@ function applyExpo(expo, taken, company) {
   $("#submitBtn").disabled = state.preview;
   if (first) renderFields(); // don't wipe what the visitor typed when fresh settings arrive
   renderDays();
-  document.body.classList.remove("expo-loading");
+  document.documentElement.classList.remove("expo-loading");
 }
 
 // ---------- page text ----------
@@ -192,8 +193,19 @@ function renderHero() {
   const meta = document.querySelector('meta[name="description"]');
   if (meta) meta.content = `Book a meeting with ${who} at ${e.name}${booth ? `, ${booth}` : ""}${e.venue ? `, ${e.venue}` : ""}, ${dateRange(e.days)}.`;
   // no banner: RP keeps its India Gate photo, other companies get their own colour
-  document.querySelector(".hero").classList.toggle("hero--plain", !e.banner && state.company.id !== "rp");
+  const hero = document.querySelector(".hero");
+  const heroImg = $("#heroPicture img");
+  hero.classList.toggle("hero--plain", !e.banner && state.company.id !== "rp");
   document.querySelector(".info").hidden = false;
+  if (!e.banner && state.company.id === "rp") {
+    if (!heroImg.getAttribute("src")) heroImg.src = "/assets/india-gate.jpg"; // left out on links that might be a company's
+    hero.classList.add("has-banner");
+  }
+  // a banner shows only once it has loaded, so nothing else shows in its place first
+  if (e.banner && !(heroImg.getAttribute("src") === e.banner && heroImg.complete)) {
+    hero.classList.remove("has-banner");
+    heroImg.onload = () => hero.classList.add("has-banner");
+  } else if (e.banner) hero.classList.add("has-banner");
   if (e.banner) {
     const pic = $("#heroPicture");
     pic.querySelectorAll("source").forEach((s) => s.remove());

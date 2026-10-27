@@ -73,13 +73,17 @@ window.Brand = (() => {
     el.style.setProperty("--font", fontStack(font));
     const name = (company.profile && company.profile.shortName) || company.name || "";
     const logo = logoUrl(company);
+    const backup = company.brand.logoBackup;
     el.querySelectorAll("[data-brand-logo]").forEach((img) => {
-      if (logo) { img.src = logo; img.hidden = false; } else img.hidden = true;
+      // the copy in the company's Drive, if the original (on their website) won't load
+      img.onerror = backup ? () => { img.onerror = null; img.src = backup; } : null;
+      if (logo) { if (img.getAttribute("src") !== logo) img.src = logo; img.hidden = false; } else img.hidden = true;
       img.alt = name;
       img.removeAttribute("width");
       img.removeAttribute("height");
+      img.dataset.ready = "1"; // company pages keep logos hidden until this (see style.css: .co-page)
     });
-    el.querySelectorAll("[data-brand-name]").forEach((n) => { n.textContent = name; });
+    el.querySelectorAll("[data-brand-name]").forEach((n) => { n.textContent = name; n.dataset.ready = "1"; });
     if (el === document.documentElement) {
       const meta = document.querySelector('meta[name="theme-color"]');
       if (meta) meta.content = vars["--navy"];
@@ -88,5 +92,10 @@ window.Brand = (() => {
     }
   }
 
-  return { apply, colors, contrast, readable, mix, logoUrl, loadFont, fontStack, DEFAULT_FONT };
+  // what a page needs to look like this company before anything else loads (kept on the device)
+  function look(company, title) {
+    return { vars: colors(company.brand), font: company.brand.font || DEFAULT_FONT, title: title || document.title, logo: logoUrl(company) };
+  }
+
+  return { apply, colors, contrast, readable, mix, logoUrl, loadFont, fontStack, look, DEFAULT_FONT };
 })();
