@@ -1,4 +1,4 @@
-// RP Industries · CPHI admin: mark meetings complete, record a voice note, show the minutes.
+// Expo meetings · admin: mark meetings complete, record a voice note, show the minutes.
 // Loaded after admin.js and uses its api(), esc(), state, store, fmtDay() and slotTime().
 
 const MAX_REC_SECONDS = 10 * 60;
@@ -244,7 +244,8 @@ async function generate(id) {
     if (ex.message === "auth") throw ex;
     r = { ok: false, error: "network" };
   }
-  if (row) row.minutes = r.ok ? "Ready" : r.error === "in_progress" ? "Processing" : "Failed";
+  // queued: the meeting was marked complete offline; the minutes are written once it's uploaded
+  if (row) row.minutes = r.ok ? "Ready" : r.error === "in_progress" ? "Processing" : r.error === "queued" ? "Pending" : "Failed";
   render();
   return r;
 }
@@ -384,6 +385,10 @@ $("#copyMinutesBtn").addEventListener("click", async () => {
 
 $("#printMinutesBtn").addEventListener("click", () => {
   const r = current;
+  const co = state.company || {};
+  const navy = window.Brand.colors(co.brand)["--navy"];
+  const who = (co.profile && co.profile.shortName) || co.name || "";
+  const logo = window.Brand.logoUrl(co);
   const w = window.open("", "_blank");
   if (!w) return alert("Allow pop-ups for this page to print the minutes.");
   const doc = $(".minutes").cloneNode(true);
@@ -392,11 +397,11 @@ $("#printMinutesBtn").addEventListener("click", () => {
     <title>Minutes of meeting · ${esc(r.company || r.name)} · ${esc(fmtDay(r.date))}</title>
     <style>
       body { font-family: "Plus Jakarta Sans", Arial, Helvetica, sans-serif; color: #1a2233; max-width: 720px; margin: 40px auto; padding: 0 24px; line-height: 1.55; font-size: 14px; }
-      header { border-bottom: 2px solid #003279; padding-bottom: 16px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; }
+      header { border-bottom: 2px solid ${navy}; padding-bottom: 16px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; }
       header img { height: 56px; }
-      h1 { margin: 0; font-size: 22px; color: #003279; }
+      h1 { margin: 0; font-size: 22px; color: ${navy}; }
       header p { margin: 4px 0 0; color: #667085; }
-      h3 { margin: 22px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #003279; }
+      h3 { margin: 22px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: ${navy}; }
       p { margin: 0; } ul { margin: 0; padding-left: 18px; } li + li { margin-top: 4px; }
       table { width: 100%; border-collapse: collapse; } th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #d9dee7; vertical-align: top; }
       th { font-size: 12px; color: #667085; }
@@ -406,9 +411,9 @@ $("#printMinutesBtn").addEventListener("click", () => {
     <header><div><h1>Minutes of meeting</h1>
       <p>${esc(r.name)}, ${esc(r.company)} (${esc(r.country)})</p>
       <p>${esc(fmtDay(r.date))}, ${esc(slotTime(r))} · ${esc(expoLine(r))}</p></div>
-      <img src="${new URL("assets/rp-logo.png", location.href)}" alt="RP Industries"></header>
+      ${logo ? `<img src="${esc(logo)}" alt="${esc(who)}">` : ""}</header>
     ${doc.innerHTML}
-    <footer>RP Industries · Quality Matters First</footer>
+    <footer>${esc([who, co.profile && co.profile.tagline].filter(Boolean).join(" · "))}</footer>
     </body></html>`);
   w.document.close();
   w.onload = () => { w.focus(); w.print(); };

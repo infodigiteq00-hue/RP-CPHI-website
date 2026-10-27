@@ -9,17 +9,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="css/style.css?v=20261025-3">
-  <link rel="stylesheet" href="css/admin.css?v=20261025-3">
+  <link rel="stylesheet" href="css/style.css?v=20261027-8">
+  <link rel="stylesheet" href="css/admin.css?v=20261027-8">
 </head>
 <body class="admin">
 
   <!-- LOGIN -->
   <main class="login" id="loginView">
     <form class="login__box" id="loginForm" novalidate>
-      <img src="assets/rp-logo.png" alt="RP Industries" width="302" height="386">
+      <img src="assets/rp-logo.png" alt="RP Industries" width="302" height="386" data-brand-logo>
       <h1>Admin login</h1>
-      <p class="muted">CPHI India 2026 meeting requests</p>
+      <p class="muted"><span data-brand-name>RP Industries</span> expo meetings</p>
       <div class="field">
         <label for="loginId">ID</label>
         <input id="loginId" name="username" autocomplete="username" required>
@@ -37,13 +37,15 @@
   <div id="appView" hidden>
     <header class="header">
       <div class="wrap header__in">
-        <a href="index.html" class="logo"><img src="assets/rp-logo.png" alt="RP Industries" width="302" height="386"></a>
+        <a href="index.html" class="logo" id="homeLink"><img src="assets/rp-logo.png" alt="RP Industries" width="302" height="386" data-brand-logo></a>
         <div class="header__user">
           <span class="muted" id="userName"></span>
           <button class="link" type="button" id="logoutBtn">Sign out</button>
         </div>
       </div>
     </header>
+
+    <div class="netbar" id="netBar" role="status" hidden></div>
 
     <main class="wrap results">
       <div class="results__head">
@@ -62,11 +64,13 @@
         </div>
         <div class="results__actions">
           <button class="btn btn--outline btn--sm" type="button" id="refreshBtn">Refresh</button>
-          <button class="btn btn--sm" type="button" id="csvBtn">Download CSV</button>
+          <button class="btn btn--outline btn--sm" type="button" id="csvBtn">Download CSV</button>
+          <button class="btn btn--sm" type="button" id="addMeetingBtn">Add meeting</button>
         </div>
       </div>
 
       <p class="err" id="loadErr" hidden></p>
+      <p class="action-msg" id="actionMsg" role="status" hidden></p>
 
       <div id="requestsView">
         <div class="toolbar">
@@ -101,14 +105,21 @@
         </div>
       </div>
 
-      <!-- confirmed meetings only, by day -->
+      <!-- every meeting still to happen (New and Confirmed), by day -->
       <div id="scheduledView" hidden>
         <div class="toolbar">
           <div class="tabs" id="schedDays" role="tablist" aria-label="Filter by day"></div>
           <div class="toolbar__right">
             <input type="search" id="schedSearch" placeholder="Search name, company, email, product" aria-label="Search scheduled meetings">
+            <select id="schedStatus" aria-label="Filter by status">
+              <option value="">All scheduled</option>
+              <option value="New">Awaiting reply</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="Completed">Completed</option>
+            </select>
           </div>
         </div>
+        <p class="muted avail-note">New requests and confirmed meetings, in meeting order. Take notes and mark confirmed meetings complete here. Choose Completed to view past notes, minutes and follow-ups. Each lead shows its age and received date.</p>
         <div id="sched"></div>
       </div>
 
@@ -121,6 +132,86 @@
       </div>
     </main>
   </div>
+
+  <!-- a meeting arranged outside the booking page: js/meeting.js -->
+  <dialog class="modal" id="meetingDialog" aria-labelledby="meetingTitle">
+    <form method="dialog" class="modal__in" id="meetingForm" novalidate>
+      <div class="modal__head">
+        <div>
+          <h2 id="meetingTitle">Add a meeting</h2>
+          <p class="muted" id="meetingExpo"></p>
+        </div>
+        <button class="modal__close" type="button" data-close aria-label="Close">&times;</button>
+      </div>
+      <div class="modal__body">
+        <p class="modal__lead">For a meeting arranged by phone, email or at the booth. It takes its time on the booking page, and gets notes, minutes and a follow-up like any other.</p>
+        <div class="mt-grid">
+          <div class="field"><label for="mtDay">Day</label><select id="mtDay"></select></div>
+          <div class="field"><label for="mtTime">Time</label><select id="mtTime"></select></div>
+          <div class="field" id="mtOtherTime" hidden><label for="mtStart">Starts at</label><input type="time" id="mtStart"></div>
+          <div class="field" id="mtOtherLen" hidden><label for="mtLen">Length</label>
+            <select id="mtLen"><option value="15">15 minutes</option><option value="20">20 minutes</option><option value="30" selected>30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="90">90 minutes</option><option value="120">120 minutes</option></select></div>
+        </div>
+        <p class="hint" id="mtBlockNote" hidden>This time is blocked. Adding the meeting removes the block.</p>
+        <div class="mt-grid">
+          <div class="field"><label for="mtName">Name</label><input id="mtName" maxlength="120" autocomplete="off"></div>
+          <div class="field"><label for="mtCompany">Company <span class="opt">(optional)</span></label><input id="mtCompany" maxlength="160" autocomplete="off"></div>
+          <div class="field"><label for="mtEmail">Email <span class="opt">(needed for the follow-up)</span></label><input id="mtEmail" type="email" maxlength="160" autocomplete="off"></div>
+          <div class="field"><label for="mtPhone">Phone <span class="opt">(optional)</span></label><input id="mtPhone" maxlength="40" autocomplete="off"></div>
+          <div class="field"><label for="mtCountry">Country <span class="opt">(optional)</span></label><input id="mtCountry" maxlength="80" autocomplete="off"></div>
+          <div class="field"><label for="mtStatus">Status</label><select id="mtStatus"><option>Confirmed</option><option>New</option></select></div>
+        </div>
+        <div class="field"><label for="mtProducts">Products of interest <span class="opt">(optional, separate with commas)</span></label>
+          <input id="mtProducts" maxlength="1000" list="mtProductList" autocomplete="off"><datalist id="mtProductList"></datalist></div>
+        <div class="field"><label for="mtMessage">Note <span class="opt">(optional)</span></label><textarea id="mtMessage" rows="3" maxlength="2000"></textarea></div>
+        <p class="err" id="meetingErr" hidden></p>
+      </div>
+      <div class="modal__foot">
+        <button class="link link--muted" type="button" data-close>Cancel</button>
+        <button class="btn" type="submit" id="mtSave">Add meeting</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- accept, reschedule or reject a meeting, and tell the visitor: js/decide.js -->
+  <dialog class="modal" id="decideDialog" aria-labelledby="decideTitle">
+    <form method="dialog" class="modal__in" id="decideForm" novalidate>
+      <div class="modal__head">
+        <div>
+          <h2 id="decideTitle">Accept meeting</h2>
+          <p class="muted" id="decideWho"></p>
+        </div>
+        <button class="modal__close" type="button" data-close aria-label="Close">&times;</button>
+      </div>
+      <div class="modal__body">
+        <p class="modal__lead" id="decideLead"></p>
+        <div class="mt-grid" id="dcWhen" hidden>
+          <div class="field"><label for="dcDay">New day</label><select id="dcDay"></select></div>
+          <div class="field"><label for="dcTime">New time</label><select id="dcTime"></select></div>
+        </div>
+        <div class="field">
+          <label for="dcNote"><span id="dcNoteLabel">Personal note</span> <span class="opt">(optional, included in the email)</span></label>
+          <textarea id="dcNote" rows="3" maxlength="1000"></textarea>
+        </div>
+        <label class="check dc-email"><input type="checkbox" id="dcEmail" checked> Email the visitor</label>
+        <p class="hint" id="dcEmailNote"></p>
+        <div class="dc-preview" id="dcPreview">
+          <p class="label">What the visitor will receive</p>
+          <dl class="fu-head">
+            <div><dt>To</dt><dd id="dcTo"></dd></div>
+            <div><dt>Subject</dt><dd id="dcSubject"></dd></div>
+          </dl>
+          <pre class="fu-text" id="dcText"></pre>
+          <p class="hint" id="dcAttach"></p>
+        </div>
+        <p class="err" id="decideErr" hidden></p>
+      </div>
+      <div class="modal__foot">
+        <button class="link link--muted" type="button" data-close>Back</button>
+        <button class="btn" type="submit" id="dcSave">Accept</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- mark complete: voice note and/or notes -->
   <dialog class="modal" id="completeDialog" aria-labelledby="completeTitle">
@@ -227,6 +318,13 @@
           <div class="field">
             <label for="fuMessage">Message <span class="opt">("Dear name," and the signature are added for you)</span></label>
             <textarea id="fuMessage" rows="10" maxlength="6000"></textarea>
+          </div>
+          <div class="field fu-line" id="fuLineField">
+            <div class="notes-head">
+              <label for="fuLine">Line about us <span class="opt">(from our website profile; added after the first paragraph)</span></label>
+              <button class="link link--muted" type="button" id="fuLineRemove">Remove</button>
+            </div>
+            <textarea id="fuLine" rows="2" maxlength="400" placeholder="No line about us in this email."></textarea>
           </div>
         </div>
         <div id="followupPreview" hidden>
@@ -348,11 +446,16 @@
     </div>
   </dialog>
 
-  <script src="js/config.js?v=20261025-3"></script>
-  <script src="js/admin.js?v=20261025-3" defer></script>
-  <script src="js/minutes.js?v=20261025-3" defer></script>
-  <script src="js/followup.js?v=20261025-3" defer></script>
-  <script src="js/expos.js?v=20261025-3" defer></script>
-  <script src="js/ink.js?v=20261025-3" defer></script>
+  <script src="js/config.js?v=20261027-8"></script>
+  <script src="js/brand.js?v=20261027-8"></script>
+  <script src="js/offline.js?v=20261027-8" defer></script>
+  <script src="js/admin.js?v=20261027-8" defer></script>
+  <script src="js/minutes.js?v=20261027-8" defer></script>
+  <script src="js/followup.js?v=20261027-8" defer></script>
+  <script src="js/expos.js?v=20261027-8" defer></script>
+  <script src="js/invite.js?v=20261027-8" defer></script>
+  <script src="js/ink.js?v=20261027-8" defer></script>
+  <script src="js/meeting.js?v=20261027-8" defer></script>
+  <script src="js/decide.js?v=20261027-8" defer></script>
 </body>
 </html>

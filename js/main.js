@@ -1,18 +1,25 @@
-// RP Industries · expo meeting booking (one page serves every expo)
+// Expo meetings · the booking page (one page serves every company and every expo)
 //
-// The expo comes from the address: rp-cphi.pages.dev/cphi-worldwide-2027 → "cphi-worldwide-2027";
-// / and /invite → the default expo. ?expo=… also works (handy on a local server).
-// Its settings (banner, text, dates, timings, form fields, products) come from the Apps Script in
+// The company and expo come from the address, and the server works out which is which:
+//   /  /invite  /cphi-worldwide-2027          RP Industries (its default expo, or one of its expos)
+//   /xyz-pharma  /xyz-pharma/invite           a company's default expo
+//   /xyz-pharma/cphi-worldwide-2027           one of its expos
+// ?c=…&expo=… also work (handy on a local server). The company's branding (logo, colours, font, wording)
+// and the expo's settings (banner, text, dates, timings, form fields, products) come from the Apps Script in
 // js/config.js. If that's empty, FALLBACK_EXPO is shown, every slot is open and nothing is sent.
 
 const SUBMIT_URL = (window.RP_CONFIG && window.RP_CONFIG.API_URL) || "";
 
-const EXPO_ID = (() => {
-  const seg = location.pathname.split("/").filter(Boolean)[0] || "";
-  if (seg && !/^(invite|index\.html)$/.test(seg)) return decodeURIComponent(seg).toLowerCase();
-  return (new URLSearchParams(location.search).get("expo") || "").toLowerCase();
-})();
-const CACHE_KEY = `rp_expo_${EXPO_ID || "default"}`;
+const PARAMS = new URLSearchParams(location.search);
+const PATH = location.pathname.split("/").filter((s) => s && s !== "index.html").map((s) => decodeURIComponent(s).toLowerCase());
+const PAGE_KEY = (PATH.join("/") || [PARAMS.get("c"), PARAMS.get("expo")].filter(Boolean).join("/") || "").replace(/^invite$/, "");
+const CACHE_KEY = `bk_${PAGE_KEY || "default"}`;
+// RP Industries' own pages, which show its built-in text before the settings arrive
+const RP_PAGE = !PARAMS.get("c") && (PATH.length === 0 || (PATH.length === 1 && PATH[0] === "invite"));
+// RP Industries as before companies existed: the booking page's branding until the server's arrives
+const RP_COMPANY = { id: "rp", name: "RP Industries", status: "Active",
+  brand: { logo: "/assets/rp-logo.png", primary: "#003279", accent: "#009138", highlight: "#4cd383", font: "Plus Jakarta Sans" },
+  profile: { shortName: "RP Industries", tagline: "Quality Matters First" } };
 
 // CPHI India 2026, as the server's DEFAULT_EXPO (for testing without the Apps Script)
 const FALLBACK_EXPO = {
@@ -45,7 +52,7 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const form = $("#bookForm");
 // taken: { "2026-11-23": { "10:30": "booked" | "blocked" } } from the server
-const state = { expo: null, day: null, slot: null, taken: {} };
+const state = { expo: null, company: RP_COMPANY, preview: false, day: null, slot: null, taken: {} };
 
 async function post(body) {
   const res = await fetch(SUBMIT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(body) });
@@ -109,44 +116,68 @@ const isTaken = (day, hhmm) => !!(state.taken[day] && state.taken[day][hhmm]);
 async function loadExpo() {
   let cached = null;
   try { cached = JSON.parse(localStorage.getItem(CACHE_KEY) || "null"); } catch {}
-  if (!SUBMIT_URL) { applyExpo(EXPO_ID && EXPO_ID !== FALLBACK_EXPO.id ? null : FALLBACK_EXPO, {}); return; }
-  if (cached) applyExpo(cached, {}); // last visit's settings straight away; fresh ones follow
+  if (!SUBMIT_URL) { applyExpo(RP_PAGE || PAGE_KEY === FALLBACK_EXPO.id ? FALLBACK_EXPO : null, {}, RP_COMPANY); return; }
+  if (cached && cached.expo) applyExpo(cached.expo, {}, cached.company); // last visit's settings straight away; fresh ones follow
   try {
-    const r = await post({ action: "expo", expo: EXPO_ID });
+    const r = await post({ action: "expo", path: PATH, tenant: PARAMS.get("c") || "", expo: PARAMS.get("expo") || "" });
     // an Apps Script from before expos doesn't know "expo": show CPHI India 2026 as before
-    if (!r.ok && r.error === "invalid_slot" && (!EXPO_ID || EXPO_ID === FALLBACK_EXPO.id)) {
-      applyExpo(FALLBACK_EXPO, {});
+    if (!r.ok && r.error === "invalid_slot" && (RP_PAGE || PAGE_KEY === FALLBACK_EXPO.id)) {
+      applyExpo(FALLBACK_EXPO, {}, RP_COMPANY);
       loadTaken();
       return;
     }
+    if (r.company) applyCompany(r.company);
     if (!r.ok) return showClosed(r.error, r.name);
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify(r.expo)); } catch {}
-    applyExpo(r.expo, r.unavailable || {});
+    state.preview = !!r.preview;
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ expo: r.expo, company: r.company })); } catch {}
+    applyExpo(r.expo, r.unavailable || {}, r.company);
   } catch (err) {
     console.error("Couldn't load the expo", err);
     if (!cached) showClosed("network");
   }
 }
 
+// the company's logo, colours, font and name
+function applyCompany(c) {
+  if (!c || !c.brand) return;
+  state.company = c;
+  window.Brand.apply(c);
+  const tag = c.profile && c.profile.tagline;
+  $("#footTag").textContent = tag ? ` · ${tag}` : "";
+  $("#footYear").textContent = new Date().getFullYear();
+}
+
 function showClosed(why, name) {
   document.body.classList.remove("expo-loading");
   const msg = {
     expo_closed: `Bookings for ${name || "this expo"} are closed.`,
+    company_paused: `Bookings with ${name || "this company"} are closed right now.`,
     no_expo: "We couldn't find this booking page. Please check the link.",
+    no_company: "We couldn't find this booking page. Please check the link.",
     network: "The booking page couldn't load. Please check your connection and refresh.",
   }[why] || "Bookings aren't open right now.";
+  if (why !== "network" && !RP_PAGE && !state.expo) { // no expo to show: no RP text either
+    $("#heroTitle").textContent = state.company.profile.shortName || "";
+    $("#heroPre").textContent = "";
+    $("#heroSub").hidden = true;
+    document.querySelector(".info").hidden = true;
+    document.querySelector(".hero").classList.toggle("hero--plain", state.company.id !== "rp");
+  }
   form.hidden = true;
   $("#leadTz").hidden = true;
   $("#closedMsg").textContent = msg;
   $("#closedMsg").hidden = false;
 }
 
-function applyExpo(expo, taken) {
+function applyExpo(expo, taken, company) {
   if (!expo) return showClosed("no_expo");
+  applyCompany(company);
   const first = !state.expo || state.expo.id !== expo.id;
   state.expo = expo;
   state.taken = taken;
   renderHero();
+  $("#previewNote").hidden = !state.preview;
+  $("#submitBtn").disabled = state.preview;
   if (first) renderFields(); // don't wipe what the visitor typed when fresh settings arrive
   renderDays();
   document.body.classList.remove("expo-loading");
@@ -155,10 +186,14 @@ function applyExpo(expo, taken) {
 // ---------- page text ----------
 function renderHero() {
   const e = state.expo;
+  const who = state.company.profile.shortName || state.company.name;
   const booth = [e.booth && `Booth ${e.booth}`, e.hall].filter(Boolean).join(", ");
-  document.title = `RP Industries at ${e.name}${e.booth ? ` · Booth ${e.booth}` : ""}`;
+  document.title = `${who} at ${e.name}${e.booth ? ` · Booth ${e.booth}` : ""}`;
   const meta = document.querySelector('meta[name="description"]');
-  if (meta) meta.content = `Book a meeting with RP Industries at ${e.name}${booth ? `, ${booth}` : ""}${e.venue ? `, ${e.venue}` : ""}, ${dateRange(e.days)}.`;
+  if (meta) meta.content = `Book a meeting with ${who} at ${e.name}${booth ? `, ${booth}` : ""}${e.venue ? `, ${e.venue}` : ""}, ${dateRange(e.days)}.`;
+  // no banner: RP keeps its India Gate photo, other companies get their own colour
+  document.querySelector(".hero").classList.toggle("hero--plain", !e.banner && state.company.id !== "rp");
+  document.querySelector(".info").hidden = false;
   if (e.banner) {
     const pic = $("#heroPicture");
     pic.querySelectorAll("source").forEach((s) => s.remove());
@@ -191,7 +226,7 @@ function renderHero() {
 async function loadTaken() {
   if (!SUBMIT_URL || !state.expo) return true;
   try {
-    const r = await post({ action: "slots", expo: state.expo.id });
+    const r = await post({ action: "slots", expo: state.expo.id, tenant: state.company.id });
     if (!r.ok) throw new Error(r.error);
     state.taken = r.unavailable || {};
   } catch (err) {
@@ -392,11 +427,15 @@ function errorText(f) {
 function renderProductPick() {
   const list = state.expo.products || [];
   const opt = (value, label) => (picked.includes(value) ? "" : `<option value="${esc(value)}">${esc(label)}</option>`);
+  // RP's list comes in intermediates and APIs; other companies' products are one plain list
   const ints = list.filter((p) => p.endsWith(" intermediates"));
   const apis = list.filter((p) => p.endsWith(" API"));
+  const rest = list.filter((p) => !ints.includes(p) && !apis.includes(p));
+  const grouped = ints.length || apis.length;
   $("#productPick").innerHTML = `<option value="">${picked.length ? "Add another product" : "Choose a product"}</option>` +
     (ints.length ? `<optgroup label="Intermediates">${ints.map((p) => opt(p, p.replace(/ intermediates$/, ""))).join("")}</optgroup>` : "") +
     (apis.length ? `<optgroup label="APIs">${apis.map((p) => opt(p, p.replace(/ API$/, ""))).join("")}</optgroup>` : "") +
+    (rest.length ? (grouped ? `<optgroup label="Other products">${rest.map((p) => opt(p, p)).join("")}</optgroup>` : rest.map((p) => opt(p, p)).join("")) : "") +
     `<option value="other"${$("#productsOther").hidden ? "" : " disabled"}>Other (type it in)</option>`;
   $("#picked").innerHTML = picked.map((p) =>
     `<span class="picked__item">${esc(p)}<button type="button" data-remove="${esc(p)}" aria-label="Remove ${esc(p)}">&times;</button></span>`).join("");
@@ -447,7 +486,7 @@ form.addEventListener("submit", async (e) => {
   if (bad.length) { document.getElementById(bad[0].type === "products" ? "productPick" : fieldId(bad[0])).focus(); return; }
 
   const v = (id) => (document.getElementById(id) ? document.getElementById(id).value.trim() : "");
-  const payload = { expo: state.expo.id, date: state.day, slot: state.slot, website: v("website"), page: location.href, extra: {} };
+  const payload = { tenant: state.company.id, expo: state.expo.id, date: state.day, slot: state.slot, website: v("website"), page: location.href, extra: {} };
   fields.forEach((f) => {
     if (/^c\d+$/.test(f.key)) payload.extra[f.key] = v(fieldId(f));
     else if (f.type === "phone") payload.phone = v("phone") ? `${$("#dialCode").textContent} ${v("phone")}` : "";
@@ -465,6 +504,7 @@ form.addEventListener("submit", async (e) => {
       const r = await post(payload);
       if (r.error === "slot_taken") { slotTaken(); loadTaken(); return; }
       if (r.error === "expo_closed") return showClosed("expo_closed", state.expo.name);
+      if (r.error === "company_paused" || r.error === "company_not_live") return showClosed("company_paused", state.company.profile.shortName);
       if (!r.ok) throw new Error(r.error || "send_failed");
       (state.taken[state.day] = state.taken[state.day] || {})[state.slot] = "booked";
     } else {
@@ -514,18 +554,19 @@ $("#icsBtn").addEventListener("click", () => {
   const z = (d) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const icsText = (t) => String(t).replace(/[\\,;]/g, (c) => `\\${c}`);
   const where = [e.booth && `Booth ${e.booth}`, e.hall, e.venue].filter(Boolean).join(", ");
+  const who = state.company.profile.shortName || state.company.name;
   const ics = [
-    "BEGIN:VCALENDAR", "VERSION:2.0", `PRODID:-//RP Industries//${icsText(e.name)}//EN`, "BEGIN:VEVENT",
-    `UID:${z(start)}-${Math.random().toString(36).slice(2)}@rpindustries`,
+    "BEGIN:VCALENDAR", "VERSION:2.0", `PRODID:-//${icsText(who)}//${icsText(e.name)}//EN`, "BEGIN:VEVENT",
+    `UID:${z(start)}-${Math.random().toString(36).slice(2)}@${state.company.id}.expo-meetings`,
     `DTSTAMP:${z(new Date())}`, `DTSTART:${z(start)}`, `DTEND:${z(end)}`,
-    `SUMMARY:Meeting with RP Industries at ${icsText(e.name)}`,
+    `SUMMARY:Meeting with ${icsText(who)} at ${icsText(e.name)}`,
     `LOCATION:${icsText(where)}`,
-    "DESCRIPTION:Meeting request with RP Industries. Awaiting confirmation by email.",
+    `DESCRIPTION:Meeting request with ${icsText(who)}. Awaiting confirmation by email.`,
     "END:VEVENT", "END:VCALENDAR",
   ].join("\r\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
-  a.download = `rp-industries-${e.id}.ics`;
+  a.download = `${state.company.id === "rp" ? "rp-industries" : state.company.id}-${e.id}.ics`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });

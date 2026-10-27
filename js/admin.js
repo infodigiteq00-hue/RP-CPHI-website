@@ -1,18 +1,35 @@
-// RP Industries · expo meeting requests admin. Everything shown is for the expo picked at the top.
+// Expo meetings · a company's admin dashboard. Everything shown is for the expo picked at the top.
+// The company comes from ?c= (a /xyz/admin link sends you there); none means RP Industries.
+// The owners' dashboard (super.html) opens it signed in, with #auth=<token>.
 
 const API = (window.RP_CONFIG && window.RP_CONFIG.API_URL) || "";
-const TOKEN_KEY = "rp_admin_token";
-const USER_KEY = "rp_admin_user";
-const VIEW_KEY = "rp_admin_view";
-const EXPO_KEY = "rp_admin_expo";
+const COMPANY_ID = (new URLSearchParams(location.search).get("c") || "rp").toLowerCase().replace(/[^a-z0-9-]/g, "");
+// RP keeps its old key names, so its people stay signed in
+const KEY_PREFIX = COMPANY_ID === "rp" ? "rp_admin" : `adm_${COMPANY_ID}`;
+const TOKEN_KEY = `${KEY_PREFIX}_token`;
+const USER_KEY = `${KEY_PREFIX}_user`;
+const VIEW_KEY = `${KEY_PREFIX}_view`;
+const EXPO_KEY = `${KEY_PREFIX}_expo`;
 
 const $ = (s) => document.querySelector(s);
 const state = {
   rows: [], blocked: [], statuses: ["New", "Confirmed", "Completed", "Cancelled"], day: "", q: "", status: "", sort: "meeting",
-  schedDay: "", schedQ: "",                  // Scheduled view: day tab and search
+  schedDay: "", schedQ: "", schedStatus: "", // Scheduled view: day tab, search and status (New / Confirmed)
   view: "requests", blocking: "", busy: "", // blocking: slot whose reason box is open; busy: slot being saved
   expos: [], expoId: "", catalogue: [],      // every expo's settings (from the server) and the one picked
+  company: null, template: null,             // the company (branding, seats, products) and a new expo's starting settings
 };
+
+// RP Industries as before companies existed (an Apps Script from before this update sends no company)
+const RP_COMPANY = { id: "rp", name: "RP Industries", status: "Active", seats: 99, seatsUsed: 0,
+  brand: { logo: "/assets/rp-logo.png", primary: "#003279", accent: "#009138", highlight: "#4cd383", font: "Plus Jakarta Sans" },
+  profile: { shortName: "RP Industries", tagline: "Quality Matters First", headline: "World's No. 1 Prazole Intermediate Manufacturer",
+    highlight: "Prazole Intermediate", products: [], signature: { team: "Team RP Industries", tagline: "Quality Matters First", phone: "", email: "", website: "" } } };
+const isRP = () => COMPANY_ID === "rp";
+// an expo's booking page: RP's are /<expo> (its default also /invite), other companies' /<company>/<expo>
+function bookingLink(expoId) {
+  return isRP() ? `${location.origin}/${expoId}` : `${location.origin}/${COMPANY_ID}/${expoId}`;
+}
 
 // CPHI India 2026 as an older Apps Script (before expos) runs it: shown until Code.gs is updated
 const OLD_SCRIPT_EXPO = {
@@ -74,18 +91,24 @@ function expoLine(r) {
   return e ? [e.name, e.booth && `Booth ${e.booth}`, e.hall].filter(Boolean).join(", ") : "";
 }
 
+// kept on the device (not just this tab), so a tablet that loses its connection stays signed in; logins last 12 hours
 const store = {
-  get: (k) => { try { return sessionStorage.getItem(k); } catch { return null; } },
-  set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} },
-  clear: () => { try { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(USER_KEY); } catch {} },
+  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+  clear: () => { try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); } catch {} },
 };
 
-async function api(action, data = {}) {
+// every call goes through js/offline.js, which keeps changes on the device while there's no connection
+function api(action, data = {}) {
+  return window.Offline ? window.Offline.api(action, data) : apiRaw(action, data);
+}
+
+async function apiRaw(action, data = {}) {
   if (!API) throw new Error("not_configured_url");
   const res = await fetch(API, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action, ...data }),
+    body: JSON.stringify({ action, tenant: COMPANY_ID, ...data }),
   });
   const json = await res.json();
   if (!json.ok && json.error === "auth") { signOut(); throw new Error("auth"); }
@@ -98,7 +121,37 @@ const LOGIN_ERRORS = {
   locked: "Too many wrong attempts. Try again in 15 minutes.",
   not_configured: "Admin login isn't set up yet. Add ADMIN_ID and ADMIN_PASSWORD in the Apps Script properties.",
   not_configured_url: "The Apps Script URL is missing in js/config.js.",
+  company_not_live: "This dashboard isn't switched on yet.",
+  company_paused: "This dashboard is paused at the moment. Please contact us.",
+  no_company: "This dashboard link isn't valid. Please check it.",
 };
+
+// the company's branding on the page; before login from the public "company" answer
+function brandPage(c) {
+  if (!c || !c.brand) return;
+  state.company = Object.assign({}, state.company || {}, c);
+  window.Brand.apply(c);
+  const who = (c.profile && c.profile.shortName) || c.name;
+  document.title = `Meeting requests · ${who}`;
+  $("#homeLink").href = isRP() ? "index.html" : `/${COMPANY_ID}`;
+}
+(async () => {
+  if (isRP() || !API) return;
+  try {
+    const r = await api("company");
+    if (r.ok) brandPage(r.company);
+    else { $("#loginErr").textContent = LOGIN_ERRORS[r.error] || LOGIN_ERRORS.no_company; $("#loginErr").hidden = false; }
+  } catch {}
+})();
+
+// opened from the owners' dashboard: #auth=<token>
+(() => {
+  const m = /^#auth=([\w.=-]+)/.exec(location.hash);
+  if (!m) return;
+  store.set(TOKEN_KEY, m[1]);
+  store.set(USER_KEY, "Owner");
+  history.replaceState(null, "", `${location.pathname}${location.search}#requests`);
+})();
 
 $("#loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -134,7 +187,12 @@ function signOut() {
   $("#loginView").hidden = false;
   $("#loginId").focus();
 }
-$("#logoutBtn").addEventListener("click", signOut);
+$("#logoutBtn").addEventListener("click", async () => {
+  const n = window.Offline ? await window.Offline.waiting() : 0;
+  if (n && !confirm(`${n} change${n === 1 ? " hasn't" : "s haven't"} been uploaded yet. They stay on this device and upload after the next sign-in. Sign out anyway?`)) return;
+  if (window.Offline) await window.Offline.forget(); // the meetings kept on this device for offline use
+  signOut();
+});
 
 function showApp() {
   $("#loginView").hidden = true;
@@ -156,10 +214,13 @@ async function load() {
     state.blocked = r.blocked || [];
     if (r.statuses) state.statuses = r.statuses;
     // an Apps Script from before expos sends no expos: everything is CPHI India 2026
-    state.expos = r.expos || [OLD_SCRIPT_EXPO];
+    state.expos = r.expos || (isRP() ? [OLD_SCRIPT_EXPO] : []);
     state.oldScript = !r.expos;
     state.catalogue = r.catalogue || OLD_SCRIPT_EXPO.products;
-    state.rows.forEach((x) => { x.expo = x.expo || "cphi-india-2026"; x.extra = x.extra || []; });
+    state.company = r.company || RP_COMPANY;
+    state.template = r.template || null;
+    brandPage(state.company);
+    state.rows.forEach((x) => { x.expo = x.expo || "cphi-india-2026"; x.extra = x.extra || []; x.history = x.history || []; });
     state.blocked.forEach((x) => { x.expo = x.expo || "cphi-india-2026"; });
     if (!curExpo()) {
       const pick = store.get(EXPO_KEY);
@@ -167,7 +228,8 @@ async function load() {
     }
     renderExpoSelect();
     renderFilters();
-    render();
+    if (!state.expos.length && state.view !== "settings") showView("settings"); // a new company: set up its first expo
+    else render();
   } catch (ex) {
     if (ex.message === "auth") return;
     $("#loadErr").textContent = "Couldn't load requests. Try Refresh.";
@@ -186,6 +248,7 @@ function renderExpoSelect() {
   const opt = (e) => `<option value="${esc(e.id)}"${e.id === state.expoId ? " selected" : ""}>${esc(e.name)}${e.isDefault ? " (default)" : ""}</option>`;
   $("#expoSelect").innerHTML = active.map(opt).join("") +
     (archived.length ? `<optgroup label="Archived">${archived.map(opt).join("")}</optgroup>` : "");
+  $("#expoSelect").closest(".expo-pick").hidden = !state.expos.length;
 }
 function pickExpo(id) {
   state.expoId = id;
@@ -254,6 +317,19 @@ function visibleRows() {
   return rows;
 }
 
+// meetings the team added outside the booking page ("team:<minutes>:<who>" in page)
+const addedByTeam = (r) => /^team:/.test(r.page || "");
+const meetingMinutes = (r) => Number((/^team:(\d+)/.exec(r.page || "") || [])[1] || 0);
+// the expo's slots a request takes: its own, or every slot a team-added meeting's time overlaps (as Code.gs)
+function rowSlots(r, expo = curExpo()) {
+  const len = meetingMinutes(r);
+  if (!len || !expo) return [r.slot];
+  const min = (t) => { const [h, m] = String(t).split(":").map(Number); return h * 60 + m; };
+  const start = min(r.slot);
+  const out = expo.slots.filter((s) => min(s) < start + len && min(s) + expo.slotMinutes > start);
+  return out.length ? out : [r.slot];
+}
+
 function fmtDay(d) {
   const [y, m, day] = d.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, day)).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
@@ -270,6 +346,7 @@ function showView(view) {
   $("#slotsView").hidden = state.view !== "slots";
   $("#settingsView").hidden = state.view !== "settings";
   $("#csvBtn").hidden = !["requests", "scheduled"].includes(state.view);
+  $("#addMeetingBtn").hidden = state.view === "settings";
   $("#refreshBtn").hidden = state.view === "settings";
   if (!$("#appView").hidden) render();
 }
@@ -304,7 +381,7 @@ function render() {
     return `<tr class="${r.status === "Cancelled" ? "is-cancelled" : ""}">
       <td class="c-meeting" data-label="Meeting">
         <strong>${esc(fmtDay(r.date))} · ${esc(slotTime(r))}</strong>
-        <small>Received ${esc(r.received)} · ${esc(r.id)}</small>
+        <small>${esc(ageLine(r))} · ${esc(receivedLine(r))} · ${esc(r.id)}</small>
         ${clash ? `<div class="clash">${taken[`${r.date} ${r.slot}`]} requests for this slot</div>` : ""}
       </td>
       <td data-label="Visitor"><strong>${esc(r.name)}</strong><small>${esc(r.company)}</small><small>${esc(r.country)}</small></td>
@@ -314,8 +391,9 @@ function render() {
         `<p class="extra"><span>${esc(x.label)}</span> ${esc(x.value)}</p>`).join("")}</td>
       <td data-label="Status">
         <select class="status" data-id="${esc(r.id)}" data-v="${esc(r.status)}" aria-label="Status for ${esc(r.name)}"${state.busy === r.id ? " disabled" : ""}>
-          ${state.statuses.map((s) => `<option${s === r.status ? " selected" : ""}>${esc(s)}</option>`).join("")}
+          ${state.statuses.filter((s) => s !== "Completed" || r.status === "Completed").map((s) => `<option${s === r.status ? " selected" : ""}>${esc(s)}</option>`).join("")}
         </select>
+        ${lastChange(r) ? `<small>${esc(lastChange(r))}</small>` : ""}
         ${rowActions(r)}
       </td>
     </tr>`;
@@ -324,35 +402,116 @@ function render() {
   $("#table").hidden = rows.length === 0;
 }
 
-// links under the status: what can be done with this meeting next
+// Requests contains decisions only. Meeting notes and completion live in Scheduled.
 function rowActions(r) {
+  const id = esc(r.id);
+  const scheduled = `<button class="act" type="button" data-act="view-scheduled" data-id="${id}">View in Scheduled</button>`;
+  if (r.status === "Cancelled") return emailRetryButton(r);
+  if (r.status === "Completed") return `<div class="row-actions">${scheduled}</div>`;
+  const actions = r.status === "New" ? answerButtons(r) :
+    `<button class="act act--primary" type="button" data-act="reschedule" data-id="${id}">Reschedule</button>` +
+    `<button class="act act--quiet act--danger" type="button" data-act="cancel-meeting" data-id="${id}">Cancel meeting</button>` + scheduled;
+  return `<div class="row-actions">${actions}${emailRetryButton(r)}</div>`;
+}
+
+// Minutes, notes and follow-ups remain accessible under Scheduled → Completed.
+function completedMeetingButtons(r) {
   const id = esc(r.id);
   // kind: "primary" (the next thing to do), "" (plain button) or "quiet" / "quiet danger" (text only)
   const btn = (act, label, kind = "") => `<button class="act${kind ? kind.split(" ").map((k) => ` act--${k}`).join("") : ""}" type="button" data-act="${act}" data-id="${id}">${label}</button>`;
-  if (r.status === "Cancelled") return "";
-  if (r.status !== "Completed") return `<div class="row-actions">${meetingButtons(r)}</div>`;
   const m = r.minutes || "None";
   if (m === "Ready") {
     const f = followupLabel(r); // js/followup.js
     const kind = r.followup === "Sent" ? "quiet" : r.followup === "Failed" ? "danger" : "primary";
-    return `<div class="row-actions">${btn("minutes", "View minutes")}${btn("followup", esc(f), kind)}</div>`;
+    return `${btn("minutes", "View minutes")}${btn("followup", esc(f), kind)}`;
   }
-  if (m === "Processing" || m === "Pending") return `<div class="row-actions">${btn("minutes", "Writing minutes…", "quiet")}</div>`;
-  if (m === "Failed") return `<div class="row-actions">${btn("retry-minutes", "Minutes failed · Retry", "danger")}</div>`;
-  return `<div class="row-actions">${btn("add-notes", "Add notes", "primary")}</div>`;
+  if (m === "Processing" || m === "Pending") return btn("minutes", "Writing minutes…", "quiet");
+  if (m === "Failed") return btn("retry-minutes", "Minutes failed · Retry", "danger");
+  return btn("add-notes", "Add notes", "primary");
 }
 
-// a meeting that hasn't happened yet: notes while it runs (js/ink.js), then complete or cancel it
-function meetingButtons(r) {
+// Answer a new request, in Requests and Scheduled (js/decide.js).
+function answerButtons(r) {
   const id = esc(r.id);
+  return `<button class="act act--primary" type="button" data-act="accept" data-id="${id}">Accept</button>` +
+    `<button class="act" type="button" data-act="reschedule" data-id="${id}">Reschedule</button>` +
+    `<button class="act act--quiet act--danger" type="button" data-act="reject" data-id="${id}">Reject</button>`;
+}
+
+function emailRetryButton(r) {
+  const last = (r.history || []).slice(-1)[0];
+  return last && last.mailError && last.emailed !== true
+    ? `<button class="act act--danger" type="button" data-act="retry-status-email" data-id="${esc(r.id)}">Email failed · Retry</button>` : "";
+}
+
+// Scheduled: answer new requests (accept, reschedule, reject) and run confirmed meetings, right on the card.
+// The decisions open js/decide.js's pop-up, which can email the visitor.
+function scheduledButtons(r) {
+  const id = esc(r.id);
+  if (r.status === "New") return answerButtons(r) + emailRetryButton(r);
+  if (r.status === "Completed") return completedMeetingButtons(r);
   return `<button class="act act--primary" type="button" data-act="complete" data-id="${id}">Mark complete</button>` +
     `<button class="act" type="button" data-act="take-notes" data-id="${id}">${r.minutes === "Draft" ? "Open notes" : "Take notes"}</button>` +
-    `<button class="act act--quiet act--danger" type="button" data-act="cancel-meeting" data-id="${id}">Cancel meeting</button>`;
+    `<button class="act" type="button" data-act="reschedule" data-id="${id}">Reschedule</button>` +
+    `<button class="act act--quiet act--danger" type="button" data-act="reject" data-id="${id}">Cancel meeting</button>` + emailRetryButton(r);
 }
 
-// ---------- scheduled: confirmed meetings only ----------
-const scheduledRows = () => expoRows().filter((r) => r.status === "Confirmed")
+// ---------- scheduled: every meeting still to happen (new requests and confirmed meetings) ----------
+const scheduledRows = () => expoRows().filter((r) => r.status === "New" || r.status === "Confirmed")
   .sort((a, b) => `${a.date} ${a.slot}`.localeCompare(`${b.date} ${b.slot}`));
+const completedRows = () => expoRows().filter((r) => r.status === "Completed")
+  .sort((a, b) => `${b.date} ${b.slot}`.localeCompare(`${a.date} ${a.slot}`));
+
+// "24 Oct" (with the year when it isn't this year's)
+function shortDate(d) {
+  const [y, m, day] = d.split("-").map(Number);
+  const x = new Date(Date.UTC(y, m - 1, day));
+  const opts = { day: "numeric", month: "short", timeZone: "UTC" };
+  if (y !== new Date().getFullYear()) opts.year = "numeric";
+  return x.toLocaleDateString("en-GB", opts);
+}
+
+// Received timestamps are stored in IST, regardless of the expo or the device's time zone.
+function leadAge(r) {
+  const m = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})/.exec(r.received || "");
+  if (!m) return null;
+  const today = (expoNow("Asia/Kolkata") || {}).date;
+  const days = today ? Math.round((Date.parse(today) - Date.parse(m[1])) / 86400000) : NaN;
+  return Number.isFinite(days) && days >= 0 ? days : null;
+}
+
+function ageLine(r) {
+  const days = leadAge(r);
+  return days === null ? "Lead age unavailable" : days === 0 ? "New lead today" : `Lead · ${days} day${days === 1 ? "" : "s"} old`;
+}
+
+function receivedLine(r) {
+  const who = addedByTeam(r) ? "Added by team" : "Received";
+  const m = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})/.exec(r.received || "");
+  if (!m) return addedByTeam(r) ? "Added on this device · awaiting upload" : "Received date unavailable";
+  const [y, month, day] = m[1].split("-").map(Number);
+  const date = new Date(Date.UTC(y, month - 1, day)).toLocaleDateString("en-GB", {
+    day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+  });
+  return `${who} ${date} at ${m[2]} IST`;
+}
+
+// the last status change: "Accepted 26 Oct by admin · visitor emailed"
+function lastChange(r) {
+  const h = (r.history || []).slice(-1)[0];
+  if (!h) return "";
+  const what = h.action === "status" ? `Set to ${h.to}`
+    : h.action === "reject" ? (h.from === "Confirmed" ? "Cancelled" : "Rejected")
+    : { accept: "Accepted", reschedule: "Rescheduled" }[h.action] || "Changed";
+  const at = /^\d{4}-\d{2}-\d{2}/.test(h.at || "") ? ` ${shortDate(h.at.slice(0, 10))}` : "";
+  const by = h.by ? ` by ${h.by}` : " on this device";
+  const from = h.action === "reschedule" && /^\d{4}-\d{2}-\d{2} /.test(h.from || "") ? ` from ${fmtDay(h.from.slice(0, 10))}, ${h.from.slice(11)}` : "";
+  const mail = h.action === "status" ? ""
+    : h.emailed === true ? " · visitor emailed"
+    : h.emailed === "when online" ? " · visitor emailed once it uploads"
+    : h.mailError ? " · the email couldn't be sent" : " · visitor not emailed";
+  return `${what}${at}${by}${from}${mail}`;
+}
 
 // the date and time at the expo now: { date: "2026-11-23", min: 630 }
 function expoNow(tz) {
@@ -366,9 +525,10 @@ function expoNow(tz) {
 
 function renderScheduled() {
   const expo = curExpo() || {};
-  const all = scheduledRows();
-  const q = state.schedQ;
-  const count = (d) => all.filter((r) => !d || r.date === d).length;
+  const completed = state.schedStatus === "Completed";
+  const all = completed ? completedRows() : scheduledRows();
+  const byStatus = all.filter((r) => !state.schedStatus || r.status === state.schedStatus);
+  const count = (d) => byStatus.filter((r) => !d || r.date === d).length;
   $("#schedDays").innerHTML = [{ id: "", label: "All days" }, ...expoDays()]
     .map((d) => `<button class="tab" role="tab" type="button" data-sday="${d.id}" aria-selected="${state.schedDay === d.id}">${d.label}<span>${count(d.id)}</span></button>`)
     .join("");
@@ -378,22 +538,26 @@ function renderScheduled() {
   const len = expo.slotMinutes || 30;
   const flags = {};
   let next = false;
-  if (now) all.forEach((r) => {
+  if (now && !completed) all.forEach((r) => {
     const [h, m] = r.slot.split(":").map(Number);
     const start = h * 60 + m;
-    if (r.date < now.date || (r.date === now.date && start + len <= now.min)) flags[r.id] = "past";
+    const mlen = meetingMinutes(r) || len;
+    if (r.date < now.date || (r.date === now.date && start + mlen <= now.min)) flags[r.id] = "past";
     else if (r.date === now.date && start <= now.min) flags[r.id] = "now";
     else if (!next) { flags[r.id] = "next"; next = true; }
   });
   const FLAG = { now: "On now", next: "Next", past: "Over · mark it complete" };
+  const flagText = (r, f) => (f === "past" && r.status === "New" ? "Time passed · not answered" : FLAG[f]);
 
-  const rows = all.filter((r) => (!state.schedDay || r.date === state.schedDay) &&
-    (!q || [r.name, r.company, r.email, r.phone, r.country, r.products, r.message, r.id, ...(r.extra || []).map((x) => x.value)]
-      .join(" ").toLowerCase().includes(q)));
-  const today = now ? all.filter((r) => r.date === now.date).length : 0;
-  $("#countLine").textContent = all.length
-    ? `${all.length} confirmed meeting${all.length === 1 ? "" : "s"}${today ? ` · ${today} today` : ""}${rows.length !== all.length ? ` · showing ${rows.length}` : ""}`
-    : "No confirmed meetings yet.";
+  const rows = visibleScheduledRows();
+  const upcoming = all.filter((r) => flags[r.id] !== "past");
+  const past = all.length - upcoming.length;
+  const today = now ? upcoming.filter((r) => r.date === now.date).length : 0;
+  const waiting = upcoming.filter((r) => r.status === "New").length;
+  const confirmed = upcoming.filter((r) => r.status === "Confirmed").length;
+  $("#countLine").textContent = completed ? `${all.length} completed meeting${all.length === 1 ? "" : "s"}${rows.length !== all.length ? ` · showing ${rows.length}` : ""}` : all.length
+    ? `${upcoming.length} upcoming meeting${upcoming.length === 1 ? "" : "s"} · ${confirmed} confirmed · ${waiting} awaiting your reply${today ? ` · ${today} today` : ""}${past ? ` · ${past} past meeting${past === 1 ? " needs" : "s need"} attention` : ""}${rows.length !== all.length ? ` · showing ${rows.length}` : ""}`
+    : "No upcoming meetings yet.";
 
   // the labels this expo's booking form uses
   const label = (key, def) => ((expo.fields || []).find((f) => f.key === key) || {}).label || def;
@@ -407,15 +571,20 @@ function renderScheduled() {
       ...(r.extra || []).map((x) => [x.label, `<span class="pre">${esc(x.value)}</span>`]),
     ].filter((x) => x[1]);
     const f = flags[r.id];
-    return `<article class="meet${f ? ` is-${f}` : ""}">
-      <div class="meet__when"><strong>${esc(slotTime(r))}</strong>${f ? `<span class="meet__flag">${FLAG[f]}</span>` : ""}</div>
+    const isNew = r.status === "New";
+    const last = lastChange(r);
+    return `<article class="meet${isNew ? " is-new" : ""}${f ? ` is-${f}` : ""}">
+      <div class="meet__when"><strong>${esc(slotTime(r))}</strong>
+        <span class="meet__status">${r.status === "Completed" ? "Completed" : isNew ? "Awaiting your reply" : (r.history || []).slice(-1)[0]?.action === "reschedule" ? "Rescheduled · confirmed" : "Confirmed"}</span>${f ? `<span class="meet__flag">${flagText(r, f)}</span>` : ""}</div>
       <div class="meet__main">
         <h3>${esc(r.name)}</h3>
         <p class="meet__co">${[r.company, r.country].filter(Boolean).map(esc).join(" · ")}</p>
+        <div class="meet__lead"><span class="lead-age">${esc(ageLine(r))}</span><span>${esc(receivedLine(r))}</span></div>
         ${info.length ? `<dl class="meet__info">${info.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join("")}</dl>` : ""}
-        <small class="muted">Booked ${esc(r.received)} · ${esc(r.id)}</small>
+        <small class="muted meet__age">Meeting ID: ${esc(r.id)}</small>
+        ${last ? `<small class="muted meet__age">${esc(last)}</small>` : ""}
       </div>
-      <div class="meet__actions">${meetingButtons(r)}</div>
+      <div class="meet__actions">${scheduledButtons(r)}</div>
     </article>`;
   };
   const days = [...new Set(rows.map((r) => r.date))];
@@ -424,8 +593,16 @@ function renderScheduled() {
       const list = rows.filter((r) => r.date === d);
       return `<section class="sched__day"><h2>${esc(fmtDay(d))} <span>${list.length} meeting${list.length === 1 ? "" : "s"}</span></h2>${list.map(card).join("")}</section>`;
     }).join("")
-    : `<p class="empty sched__empty">${all.length ? "No confirmed meetings match."
-      : "No confirmed meetings yet. When you set a request to Confirmed on the Requests tab, it shows here."}</p>`;
+    : `<p class="empty sched__empty">${all.length ? "No meetings match." : completed ? "No completed meetings yet."
+      : "No upcoming meetings yet. New requests and confirmed meetings show here."}</p>`;
+}
+
+function visibleScheduledRows() {
+  const q = state.schedQ;
+  return (state.schedStatus === "Completed" ? completedRows() : scheduledRows()).filter((r) => (!state.schedStatus || r.status === state.schedStatus) &&
+    (!state.schedDay || r.date === state.schedDay) &&
+    (!q || [r.name, r.company, r.email, r.phone, r.country, r.products, r.message, r.id, ...(r.extra || []).map((x) => x.value)]
+      .join(" ").toLowerCase().includes(q)));
 }
 
 $("#schedDays").addEventListener("click", (e) => {
@@ -435,9 +612,17 @@ $("#schedDays").addEventListener("click", (e) => {
   render();
 });
 $("#schedSearch").addEventListener("input", (e) => { state.schedQ = e.target.value.trim().toLowerCase(); render(); });
+$("#schedStatus").addEventListener("change", (e) => { state.schedStatus = e.target.value; render(); });
 $("#sched").addEventListener("click", (e) => {
-  const b = e.target.closest('button[data-act="cancel-meeting"]');
-  if (b) cancelMeeting(b.dataset.id);
+  const b = e.target.closest('button[data-act="review-request"]');
+  if (!b) return;
+  state.day = "";
+  state.status = "";
+  state.q = b.dataset.id.toLowerCase();
+  $("#search").value = b.dataset.id;
+  $("#statusFilter").value = "";
+  renderFilters();
+  showView("requests");
 });
 
 // ---------- status ----------
@@ -464,38 +649,59 @@ async function saveStatus(id, status) {
   render();
 }
 
-// asks first, then cancels: the time becomes free for visitors again
+// asks first (the Reject pop-up in js/decide.js, which can also email the visitor), then cancels:
+// the time becomes free for visitors again
 function cancelMeeting(id) {
-  const r = state.rows.find((x) => x.id === id);
-  if (!r) return;
-  const who = r.company ? `${r.name} (${r.company})` : r.name;
-  if (!confirm(`Cancel the meeting with ${who} on ${fmtDay(r.date)}, ${slotTime(r)}?\n\nThe time becomes free for visitors to book again.`)) return;
-  saveStatus(id, "Cancelled");
+  if (state.rows.some((x) => x.id === id)) openDecide(id, "reject");
 }
 
 $("#rows").addEventListener("change", (e) => {
   const sel = e.target.closest(".status");
   if (!sel) return;
   const row = state.rows.find((r) => r.id === sel.dataset.id);
-  // completing goes through the notes pop-up (js/minutes.js), not straight to the sheet
+  // Confirmation and cancellation use the same email preview as Scheduled.
+  if (row && sel.value !== row.status &&
+      ((sel.value === "Confirmed" && row.status === "New") ||
+       (sel.value === "Cancelled" && ["New", "Confirmed"].includes(row.status)))) {
+    const decision = sel.value === "Confirmed" ? "accept" : "reject";
+    sel.value = row.status;
+    openDecide(row.id, decision);
+    return;
+  }
+  // Completion is only available in Scheduled, including for an older cached status menu.
   if (sel.value === "Completed" && row && row.status !== "Completed") {
     sel.value = row.status;
-    openComplete(row.id);
+    viewScheduled(row.id);
     return;
   }
   saveStatus(sel.dataset.id, sel.value);
 });
 $("#rows").addEventListener("click", (e) => {
-  const b = e.target.closest('button[data-act="cancel-meeting"]');
-  if (b) cancelMeeting(b.dataset.id);
+  const b = e.target.closest('button[data-act="cancel-meeting"], button[data-act="view-scheduled"]');
+  if (!b) return;
+  if (b.dataset.act === "cancel-meeting") cancelMeeting(b.dataset.id);
+  else viewScheduled(b.dataset.id);
 });
+
+function viewScheduled(id) {
+  const row = state.rows.find((r) => r.id === id);
+  if (!row) return;
+  state.schedDay = "";
+  state.schedStatus = row.status === "Completed" ? "Completed" : "";
+  state.schedQ = id.toLowerCase();
+  $("#schedSearch").value = id;
+  $("#schedStatus").value = state.schedStatus;
+  showView("scheduled");
+}
 
 // ---------- availability ----------
 function renderAvail() {
   const expo = curExpo();
   if (!expo) { $("#avail").innerHTML = ""; return; }
   const booked = {};
-  expoRows().forEach((r) => { if (r.status !== "Cancelled") (booked[`${r.date} ${r.slot}`] = booked[`${r.date} ${r.slot}`] || []).push(r); });
+  expoRows().forEach((r) => {
+    if (r.status !== "Cancelled") rowSlots(r).forEach((s) => { (booked[`${r.date} ${s}`] = booked[`${r.date} ${s}`] || []).push(r); });
+  });
   const blocked = {};
   state.blocked.filter((b) => b.expo === expo.id).forEach((b) => { blocked[`${b.date} ${b.slot}`] = b; });
   const n = { free: 0, booked: 0, blocked: 0 };
@@ -523,7 +729,8 @@ function renderAvail() {
           n.blocked++;
           const why = blocked[k].reason ? `Blocked · ${blocked[k].reason}` : "Blocked";
           return `<div class="avail__row is-blocked">${time}<span class="avail__state" title="${esc(why)}">${esc(why)}</span>
-            <button class="link" type="button" data-act="unblock" ${at}${busy ? " disabled" : ""}>${busy ? "Saving…" : "Unblock"}</button></div>`;
+            <span class="avail__acts"><button class="link" type="button" data-act="unblock" ${at}${busy ? " disabled" : ""}>${busy ? "Saving…" : "Unblock"}</button>
+            <button class="link" type="button" data-act="add-meeting" data-replace="1" ${at}>Add meeting</button></span></div>`;
         }
         n.free++;
         if (state.blocking === k) {
@@ -532,8 +739,9 @@ function renderAvail() {
             <button class="link" type="submit">Block</button>
             <button class="link link--muted" type="button" data-act="cancel">Cancel</button></form>`;
         }
-        return `<div class="avail__row">${time}<span class="avail__state">Free</span>
-          <button class="link" type="button" data-act="block" ${at}${busy ? " disabled" : ""}>${busy ? "Saving…" : "Block"}</button></div>`;
+        return `<div class="avail__row is-free">${time}<span class="avail__state">Free</span>
+          <span class="avail__acts"><button class="link" type="button" data-act="block" ${at}${busy ? " disabled" : ""}>${busy ? "Saving…" : "Block"}</button>
+          <button class="link" type="button" data-act="add-meeting" ${at}>Add meeting</button></span></div>`;
       }).join("")}
     </section>`).join("");
 
@@ -549,6 +757,7 @@ $("#avail").addEventListener("click", (e) => {
   if (b.dataset.act === "cancel") { state.blocking = ""; render(); }
   if (b.dataset.act === "unblock") saveBlock("unblock", b.dataset.day, b.dataset.slot);
   if (b.dataset.act === "cancel-meeting") cancelMeeting(b.dataset.id);
+  if (b.dataset.act === "add-meeting") openAddMeeting({ date: b.dataset.day, slot: b.dataset.slot, replaceBlock: !!b.dataset.replace }); // js/meeting.js
 });
 $("#avail").addEventListener("submit", (e) => {
   e.preventDefault();
@@ -584,18 +793,19 @@ $("#csvBtn").addEventListener("click", () => {
     ["Company", "company"], ["Email", "email"], ["Country", "country"], ["Phone", "phone"], ["Products", "products"],
     ["Message", "message"], ["Status", "status"], ["Minutes", "minutes"], ["Follow-up", "followup"], ["Follow-up sent (IST)", "followupSentAt"]];
   // a column for each of this expo's own questions
-  const list = state.view === "scheduled" ? scheduledRows() : visibleRows();
+  const list = state.view === "scheduled" ? visibleScheduledRows() : visibleRows();
+  if (state.view === "scheduled") cols.splice(2, 0, ["Lead age (days)", "leadAge"]);
   const extraLabels = [];
   list.forEach((r) => (r.extra || []).forEach((x) => { if (!extraLabels.includes(x.label)) extraLabels.push(x.label); }));
   extraLabels.forEach((l) => cols.splice(cols.length - 4, 0, [l, `extra:${l}`]));
   // quote every cell, and stop spreadsheet apps from running cells that start like a formula
   const cell = (v) => { let s = String(v ?? ""); if (/^[=+\-@]/.test(s)) s = "'" + s; return `"${s.replace(/"/g, '""')}"`; };
-  const value = (r, k) => (k === "time" ? slotTime(r)
+  const value = (r, k) => (k === "leadAge" ? leadAge(r) : k === "time" ? slotTime(r)
     : k.startsWith("extra:") ? ((r.extra || []).find((x) => x.label === k.slice(6)) || {}).value || "" : r[k]);
   const csv = [cols.map((c) => cell(c[0])), ...list.map((r) => cols.map((c) => cell(value(r, c[1]))))].map((l) => l.join(",")).join("\r\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
-  a.download = `rp-${state.expoId || "expo"}-${state.view === "scheduled" ? "scheduled" : "requests"}-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `${isRP() ? "rp" : COMPANY_ID}-${state.expoId || "expo"}-${state.view === "scheduled" ? "scheduled" : "requests"}-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });

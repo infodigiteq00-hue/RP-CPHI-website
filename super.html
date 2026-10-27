@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Companies · Expo meetings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/style.css?v=20261027-8">
+  <link rel="stylesheet" href="css/admin.css?v=20261027-8">
+  <link rel="stylesheet" href="css/super.css?v=20261027-8">
+</head>
+<body class="admin super">
+
+  <!-- LOGIN -->
+  <main class="login" id="loginView">
+    <form class="login__box" id="loginForm" novalidate>
+      <p class="super__mark">Expo meetings</p>
+      <h1>Owners' login</h1>
+      <p class="muted">Companies, seats and branding</p>
+      <div class="field">
+        <label for="loginId">ID</label>
+        <input id="loginId" name="username" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="loginPw">Password</label>
+        <input id="loginPw" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <p class="err" id="loginErr" hidden></p>
+      <button class="btn" type="submit" id="loginBtn">Sign in</button>
+    </form>
+  </main>
+
+  <div id="appView" hidden>
+    <header class="header">
+      <div class="wrap header__in">
+        <p class="super__mark">Expo meetings <span class="muted">· Owners</span></p>
+        <div class="header__user">
+          <span class="muted" id="userName"></span>
+          <button class="link" type="button" id="logoutBtn">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap results">
+      <!-- the companies -->
+      <div id="listView">
+        <div class="results__head">
+          <div>
+            <h1>Companies</h1>
+            <p class="muted" id="countLine">Loading…</p>
+          </div>
+          <div class="results__actions">
+            <button class="btn btn--outline btn--sm" type="button" id="refreshBtn">Refresh</button>
+            <button class="btn btn--sm" type="button" id="addBtn">Add company</button>
+          </div>
+        </div>
+        <p class="err" id="loadErr" hidden></p>
+        <div class="table-wrap">
+          <table class="table co-table">
+            <thead><tr><th>Company</th><th>Status</th><th>Expo seats</th><th>Requests</th><th>Links</th><th></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- add a company: read its website -->
+      <div id="readView" hidden>
+        <button class="link back" type="button" data-back>&larr; Companies</button>
+        <section class="set read">
+          <h2>Add a company</h2>
+          <p class="hint">Enter the company's website. We read it for the logo, colours, font, wording, products and contact details,
+            and set up a branded booking page and dashboard. You check everything before anything goes live.</p>
+          <form class="read__row" id="readForm" novalidate>
+            <input id="siteUrl" placeholder="e.g. xyzpharma.com" aria-label="Company website" autocomplete="url">
+            <button class="btn" type="submit" id="readBtn">Read website</button>
+          </form>
+          <p class="muted read__busy" id="readBusy" hidden><span class="spinner" aria-hidden="true"></span> Reading the website and working out the branding. This takes up to a minute…</p>
+          <p class="err" id="readErr" hidden></p>
+          <p class="hint"><button class="link" type="button" id="manualBtn">Or set it up by hand</button></p>
+        </section>
+      </div>
+
+      <!-- review and edit a company -->
+      <div id="editView" hidden></div>
+    </main>
+  </div>
+
+  <script src="js/config.js?v=20261027-8"></script>
+  <script src="js/brand.js?v=20261027-8"></script>
+  <script src="js/super.js?v=20261027-8" defer></script>
+</body>
+</html>

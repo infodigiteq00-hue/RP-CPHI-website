@@ -1,4 +1,4 @@
-// RP Industries · CPHI admin: the follow-up email for a completed meeting.
+// Expo meetings · admin: the follow-up email for a completed meeting.
 // The server writes a draft from the minutes. The team reviews it here, opens it in their own email
 // (Gmail or their email app, with the client's address, subject and message filled in), sends it
 // from there, and marks it as sent. This page never sends email itself.
@@ -92,6 +92,7 @@ function showFollowup(f) {
   const sent = f.status === "Sent";
   $("#fuSubject").value = f.subject || "";
   $("#fuMessage").value = f.message || "";
+  $("#fuLine").value = f.companyLine || "";
   renderPreview();
   $("#fuState").textContent = sent
     ? `Sent ${f.sentAt} IST${f.sentBy ? `, marked by ${f.sentBy}` : ""}`
@@ -106,9 +107,13 @@ function showFollowup(f) {
 // ---------- the email as the client will get it ----------
 function emailParts() {
   const row = findRow(fu.id);
-  // just the message and the signature: no product list (the message already says what was discussed)
-  const lines = [`Dear ${row.name},`, "", $("#fuMessage").value.trim()];
-  lines.push("", "Warm regards,", ...((fu.followup && fu.followup.signature) || ["Team RP Industries"]));
+  // the message (with the line about us after its first paragraph) and the signature: no product list
+  const paras = $("#fuMessage").value.trim().split(/\n\s*\n/);
+  const line = $("#fuLine").value.trim();
+  if (line) paras.splice(1, 0, line);
+  const lines = [`Dear ${row.name},`, "", paras.join("\n\n")];
+  const team = (state.company && state.company.profile && state.company.profile.signature && state.company.profile.signature.team) || "";
+  lines.push("", "Warm regards,", ...((fu.followup && fu.followup.signature) || [team].filter(Boolean)));
   return { to: row.email, subject: $("#fuSubject").value.trim(), body: lines.join("\n") };
 }
 
@@ -132,7 +137,8 @@ function showFollowupView(view) {
   $("#followupPreview").hidden = view !== "preview";
 }
 
-const edits = () => ({ token: store.get(TOKEN_KEY), id: fu.id, subject: $("#fuSubject").value, message: $("#fuMessage").value, products: fu.products });
+const edits = () => ({ token: store.get(TOKEN_KEY), id: fu.id, subject: $("#fuSubject").value, message: $("#fuMessage").value,
+  companyLine: $("#fuLine").value.trim(), products: fu.products });
 
 async function saveFollowupDraft(quiet) {
   if (!quiet) { $("#followupErr").hidden = true; fuBusy(true, "Saving…"); }
@@ -221,6 +227,8 @@ $("#fuMarkSentBtn").addEventListener("click", async () => {
 
 $("#fuSubject").addEventListener("input", renderPreview);
 $("#fuMessage").addEventListener("input", renderPreview);
+$("#fuLine").addEventListener("input", renderPreview);
+$("#fuLineRemove").addEventListener("click", () => { $("#fuLine").value = ""; renderPreview(); });
 
 function fuBusy(on, text) {
   $("#followupProgress").hidden = !on;

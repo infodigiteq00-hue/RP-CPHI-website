@@ -1,4 +1,4 @@
-// RP Industries · admin: expo settings (the "Expo settings" tab).
+// Expo meetings · admin: expo settings (the "Expo settings" tab).
 // Edits a copy of the picked expo's settings (`draft`) and saves it with the "saveExpo" action.
 // Loaded after admin.js; uses api(), esc(), state, store, curExpo(), expoRows(), renderExpoSelect(),
 // renderFilters(), fmtRange() and pickExpo().
@@ -30,17 +30,32 @@ function startDraft(from, asNew) {
   original = JSON.stringify(draft);
 }
 
+// a new expo's starting settings: the company's (from the server), or a copy of the expo picked
+function blankExpo() {
+  const base = state.template ? copy(state.template) : { ...copy(curExpo() || {}), fields: (curExpo() || {}).fields };
+  return { ...base, id: "", name: "", days: [], isDefault: !state.expos.length, status: "Active", banner: "", emailBanner: "",
+    headline: base.headline || state.company.profile.headline || "", highlight: base.highlight || state.company.profile.highlight || "",
+    booth: "", hall: "", venue: "", subline: "", breaks: base.breaks || [], products: base.products || state.catalogue.slice() };
+}
+const seatsFree = () => (state.company.seats || 0) - state.expos.filter((e) => e.status === "Active").length;
+
 function renderSettings() {
   const box = $("#settingsView");
   if (!draft || (!isNew && draft.id !== state.expoId)) {
     const e = curExpo();
-    if (!e) { box.innerHTML = `<p class="muted">No expo yet.</p>`; return; }
-    startDraft(e, false);
+    if (!e && seatsFree() <= 0) {
+      box.innerHTML = `<p class="muted">You have no expo seats yet. Please contact us to add one.</p>`;
+      $("#countLine").textContent = "No expo yet";
+      return;
+    }
+    if (e) startDraft(e, false); else startDraft(blankExpo(), true);
   }
   const d = draft;
-  const link = d.id ? `${location.origin}/${d.id}` : "";
+  const link = d.id ? bookingLink(d.id) : "";
   const slots = previewSlots(d);
-  $("#countLine").textContent = isNew ? "New expo, not saved yet" : `Settings for ${d.name}`;
+  const co = state.company;
+  const free = seatsFree();
+  $("#countLine").textContent = isNew ? (state.expos.length ? "New expo, not saved yet" : "Set up your first expo") : `Settings for ${d.name}`;
 
   box.innerHTML = `<div class="settings">
     ${state.oldScript ? `<p class="err settings__old">The Apps Script is an older version, so expo settings can't be saved yet. Paste the latest Code.gs, run setup and redeploy (see SETUP.md).</p>` : ""}
@@ -48,10 +63,12 @@ function renderSettings() {
       <p>${link && !isNew ? `Booking link: <a href="${esc(link)}" target="_blank" rel="noopener">${esc(link)}</a>
         <button class="link" type="button" data-do="copy-link">Copy</button>` : `<span class="muted">The booking link is made from the link name below.</span>`}</p>
       <div class="settings__bar-actions">
-        ${isNew ? "" : `<button class="btn btn--outline btn--sm" type="button" data-do="duplicate">Duplicate</button>`}
-        <button class="btn btn--outline btn--sm" type="button" data-do="new">New expo</button>
+        <span class="muted seats" title="Active expos. Archived ones don't use a seat.">Expo seats: ${co.seats - free} of ${co.seats} in use</span>
+        ${isNew || free <= 0 ? "" : `<button class="btn btn--outline btn--sm" type="button" data-do="duplicate">Duplicate</button>`}
+        ${isNew || free <= 0 ? "" : `<button class="btn btn--outline btn--sm" type="button" data-do="new">New expo</button>`}
       </div>
     </div>
+    ${!isNew && free <= 0 ? `<p class="muted seats-note">All your expo seats are in use. Archive an expo you've finished with to free its seat, or contact us for more seats.</p>` : ""}
 
     <section class="set">
       <h2>Expo</h2>
@@ -59,7 +76,7 @@ function renderSettings() {
         ${input("Name", "name", d.name, "e.g. CPHI Worldwide 2027")}
         <div class="field">
           <label for="set_id">Link name</label>
-          <div class="prefixed"><span>${esc(location.host)}/</span><input id="set_id" data-bind="id" value="${esc(d.id)}" ${isNew ? "" : "readonly"} placeholder="cphi-worldwide-2027"></div>
+          <div class="prefixed"><span>${esc(location.host)}/${isRP() ? "" : `${esc(COMPANY_ID)}/`}</span><input id="set_id" data-bind="id" value="${esc(d.id)}" ${isNew ? "" : "readonly"} placeholder="cphi-worldwide-2027"></div>
           <p class="hint">${isNew ? "Lowercase letters, numbers and dashes. Can't be changed later." : "Can't be changed once saved."}</p>
         </div>
         <div class="field">
@@ -70,24 +87,29 @@ function renderSettings() {
           </select>
         </div>
         <label class="check check--field"><input type="checkbox" data-bind="isDefault"${d.isDefault ? " checked" : ""}>
-          <span>Show this expo at <b>${esc(location.host)}/invite</b></span></label>
+          <span>Show this expo at <b>${esc(location.host)}/${isRP() ? "invite" : esc(COMPANY_ID)}</b></span></label>
       </div>
     </section>
 
     <section class="set">
       <h2>Booking page</h2>
       <div class="banner-edit">
-        <img src="${esc(d.banner || "assets/india-gate-sm.webp")}" alt="Banner" id="bannerPreview">
+        ${d.banner || isRP() ? `<img src="${esc(d.banner || "assets/india-gate-sm.webp")}" alt="Banner" id="bannerPreview">`
+          : `<div class="banner-plain" id="bannerPreview"><span>No banner yet: your colours are used</span></div>`}
         <div>
-          <p class="hint">${d.banner ? "Your banner." : "The standard India Gate photo."} A wide photo works best (at least 1600 × 700 px).</p>
-          <label class="btn btn--outline btn--sm">Upload a banner<input type="file" accept="image/jpeg,image/png,image/webp" id="bannerFile" hidden></label>
-          ${d.banner ? `<button class="link" type="button" data-do="banner-default">Use the standard photo</button>` : ""}
+          <p class="hint">${d.banner ? "Your banner." : isRP() ? "The standard India Gate photo." : "No banner yet."} A wide photo works best (at least 1600 × 700 px).</p>
+          <div class="banner-edit__actions">
+            <button class="btn btn--sm" type="button" data-do="make-banner" data-kind="page">Create with Nano Banana</button>
+            <label class="btn btn--outline btn--sm">Upload a banner<input type="file" accept="image/jpeg,image/png,image/webp" id="bannerFile" hidden></label>
+          </div>
+          ${d.banner ? `<button class="link" type="button" data-do="banner-default">${isRP() ? "Use the standard photo" : "Remove the banner"}</button>` : ""}
+          <p class="muted banner-busy" id="bannerBusy" hidden><span class="spinner" aria-hidden="true"></span> Creating your banner. This takes up to a minute…</p>
           <p class="err" id="bannerErr" hidden></p>
         </div>
       </div>
       <div class="set__grid">
-        ${input("Headline", "headline", d.headline, "World's No. 1 Prazole Intermediate Manufacturer", true)}
-        ${input("Words to show in green", "highlight", d.highlight, "Prazole Intermediate", false, "Must appear in the headline.")}
+        ${input("Headline", "headline", d.headline, co.profile.headline || "Your headline", true)}
+        ${input("Words to highlight", "highlight", d.highlight, co.profile.highlight || "", false, "")}
         ${input("Line under the headline", "subline", d.subline, "Meet us in Frankfurt, 27–29 October. Book a 30-minute slot.", true)}
         ${input("Booth", "booth", d.booth, "e.g. 9.1F20")}
         ${input("Hall", "hall", d.hall, "e.g. Hall 9.1")}
@@ -144,9 +166,10 @@ function renderSettings() {
     <section class="set">
       <h2>Products of interest</h2>
       <p class="hint">The products visitors can pick from on this expo's booking form. <button class="link" type="button" data-do="products-all">Select all</button> · <button class="link" type="button" data-do="products-none">Clear</button></p>
-      ${productGroup("Intermediates", " intermediates")}
-      ${productGroup("APIs", " API")}
+      ${productGroups()}
     </section>
+
+    ${isNew ? "" : `<section class="set" id="inviteSet"></section>`}
 
     <div class="settings__save">
       <p class="err" id="settingsErr" hidden></p>
@@ -158,6 +181,20 @@ function renderSettings() {
     </div>
   </div>`;
   savedNote = "";
+  showHighlightHint();
+  if (!isNew && typeof renderInvite === "function") renderInvite(d); // js/invite.js
+}
+
+// under "Words to highlight": whether they're in the headline (only then are they shown in the accent colour)
+function showHighlightHint() {
+  const f = $("#set_highlight");
+  if (!f) return;
+  let hint = f.parentElement.querySelector(".hint");
+  if (!hint) { hint = document.createElement("p"); hint.className = "hint"; f.after(hint); }
+  const w = (draft.highlight || "").trim();
+  hint.innerHTML = !w ? "Optional: words of the headline to show in your accent colour."
+    : (draft.headline || "").toLowerCase().includes(w.toLowerCase()) ? `<span class="hint-ok">Found in the headline.</span>`
+    : `<span class="hint-warn">Not in the headline, so nothing will be highlighted. Copy the words exactly as the headline has them.</span>`;
 }
 
 // ---------- pieces ----------
@@ -192,10 +229,19 @@ function fieldRow(f, i) {
   </div>`;
 }
 
-function productGroup(title, suffix) {
-  const items = state.catalogue.filter((p) => p.endsWith(suffix));
-  return `<div class="prod-group"><h3>${title}</h3><div class="prod-grid">${items.map((p) =>
-    `<label class="check"><input type="checkbox" data-product="${esc(p)}"${draft.products.includes(p) ? " checked" : ""}> ${esc(p.slice(0, -suffix.length))}</label>`).join("")}</div></div>`;
+function productGroup(title, items, suffix = "") {
+  if (!items.length) return "";
+  return `<div class="prod-group">${title ? `<h3>${title}</h3>` : ""}<div class="prod-grid">${items.map((p) =>
+    `<label class="check"><input type="checkbox" data-product="${esc(p)}"${draft.products.includes(p) ? " checked" : ""}> ${esc(suffix ? p.slice(0, -suffix.length) : p)}</label>`).join("")}</div></div>`;
+}
+// RP's list has intermediates and APIs; other companies' products are one list
+function productGroups() {
+  if (!state.catalogue.length) return `<p class="muted">No products are set up for your company yet. Please contact us to add them.</p>`;
+  const ints = state.catalogue.filter((p) => p.endsWith(" intermediates"));
+  const apis = state.catalogue.filter((p) => p.endsWith(" API"));
+  const rest = state.catalogue.filter((p) => !ints.includes(p) && !apis.includes(p));
+  return productGroup(ints.length || apis.length ? "Intermediates" : "", ints, " intermediates") + productGroup("APIs", apis, " API") +
+    productGroup(ints.length || apis.length ? "Other products" : "", rest);
 }
 
 // same rule as slotsFor_ in Code.gs
@@ -238,6 +284,7 @@ function onEdit(e) {
       $("#set_tzLabel").value = draft.tzLabel;
     }
     if (["start", "end", "slotMinutes"].includes(k)) $("#slotPreview").innerHTML = slotPreviewText(previewSlots(draft));
+    if (k === "headline" || k === "highlight") showHighlightHint();
   } else if (t.dataset.list) {
     const item = draft[t.dataset.list][Number(t.dataset.i)];
     const k = t.dataset.k;
@@ -291,13 +338,13 @@ $("#settingsView").addEventListener("click", async (e) => {
     case "products-all": draft.products = state.catalogue.slice(); return renderSettings();
     case "products-none": draft.products = []; return renderSettings();
     case "banner-default": draft.banner = ""; return renderSettings();
+    case "make-banner": return makeBanner(b.dataset.kind || "page");
     case "copy-link":
-      try { await navigator.clipboard.writeText(`${location.origin}/${draft.id}`); b.textContent = "Copied"; } catch { b.textContent = "Couldn't copy"; }
+      try { await navigator.clipboard.writeText(bookingLink(draft.id)); b.textContent = "Copied"; } catch { b.textContent = "Couldn't copy"; }
       return setTimeout(() => { b.textContent = "Copy"; }, 1500);
     case "new":
       if (settingsDirty() && !confirm("Discard your unsaved changes?")) return;
-      startDraft({ ...copy(curExpo() || {}), id: "", name: "", days: [], isDefault: false, status: "Active", banner: "",
-        headline: (curExpo() || {}).headline || "", booth: "", hall: "", venue: "", subline: "" }, true);
+      startDraft(blankExpo(), true);
       return renderSettings();
     case "duplicate":
       if (settingsDirty() && !confirm("Discard your unsaved changes?")) return;
@@ -306,10 +353,35 @@ $("#settingsView").addEventListener("click", async (e) => {
     case "discard":
       draft = null;
       isNew = false;
+      if (!state.expos.length) { savedNote = ""; return renderSettings(); }
       return renderSettings();
     case "save": return saveSettings();
   }
 });
+
+// Nano Banana makes a banner for this expo in the company's style (kind "page" or "email")
+async function makeBanner(kind) {
+  const busy = kind === "email" ? $("#emailBannerBusy") : $("#bannerBusy");
+  const err = kind === "email" ? $("#emailBannerErr") : $("#bannerErr");
+  err.hidden = true;
+  busy.hidden = false;
+  document.querySelectorAll('[data-do="make-banner"]').forEach((x) => { x.disabled = true; });
+  try {
+    const r = await api("makeBanner", { token: store.get(TOKEN_KEY), kind,
+      expo: { id: draft.id, name: draft.name, venue: draft.venue, days: draft.days } });
+    if (!r.ok) throw Object.assign(new Error(r.error), { detail: r.detail });
+    if (kind === "email") draft.emailBanner = r.url; else draft.banner = r.url;
+    savedNote = "New banner made. Save changes to keep it.";
+    renderSettings();
+  } catch (ex) {
+    busy.hidden = true;
+    document.querySelectorAll('[data-do="make-banner"]').forEach((x) => { x.disabled = false; });
+    if (ex.message === "auth") return;
+    err.textContent = ex.detail || { invalid_slot: "The Apps Script is an older version. Update Code.gs to make banners." }[ex.message] ||
+      "Couldn't make the banner. Try again.";
+    err.hidden = false;
+  }
+}
 
 async function uploadBanner(file) {
   const err = $("#bannerErr");
@@ -360,7 +432,7 @@ async function saveSettings() {
   if (!draft.days.length) return showErr("Add at least one date.");
   if (draft.fields.some((f) => /^c\d+$/.test(f.key) && !f.label.trim())) return showErr("Every added field needs a label.");
   if (draft.fields.some((f) => f.type === "select" && !(f.options || []).length)) return showErr("Every dropdown needs at least one choice.");
-  if (draft.highlight && !(draft.headline || "").toLowerCase().includes(draft.highlight.toLowerCase())) return showErr("The green words must appear in the headline.");
+  if (draft.highlight && !(draft.headline || "").toLowerCase().includes(draft.highlight.toLowerCase())) draft.highlight = ""; // nothing to highlight
   if (!previewSlots(draft).length) return showErr("No meetings fit these times. Check the day's start, end, meeting length and breaks.");
 
   // bookings this change would leave outside the schedule: they stay listed, but say so first
@@ -375,9 +447,10 @@ async function saveSettings() {
   btn.textContent = "Saving…";
   try {
     const r = await api("saveExpo", { token: store.get(TOKEN_KEY), create: isNew, expo: draft });
-    if (!r.ok) throw Object.assign(new Error(r.error), { detail: r.detail });
+    if (!r.ok) throw Object.assign(new Error(r.error), { detail: r.detail, seats: r.seats });
     state.expos = r.expos;
-    savedNote = isNew ? `Created. Its booking link is ${location.origin}/${r.expo.id}` : "Saved. The booking page shows the changes on its next visit.";
+    savedNote = isNew ? `Created. Its booking link is ${bookingLink(r.expo.id)}` : "Saved. The booking page shows the changes on its next visit.";
+    if (state.company) state.company.seatsUsed = r.expos.filter((e) => e.status === "Active").length;
     draft = null;
     isNew = false;
     pickExpo(r.expo.id);
@@ -386,6 +459,7 @@ async function saveSettings() {
     btn.textContent = isNew ? "Create expo" : "Save changes";
     if (ex.message === "auth") return;
     showErr({ id_taken: "That link name is already used by another expo.", busy: "The sheet is busy. Try again in a moment.",
+      no_seats: `All your expo seats are in use (${ex.seats || state.company.seats}). Archive an expo you've finished with, or contact us for more seats.`,
       invalid_slot: "The Apps Script is an older version. Paste the latest Code.gs, run setup and redeploy, then save again." }[ex.message]
       || ex.detail || "Couldn't save. Try again.");
   }

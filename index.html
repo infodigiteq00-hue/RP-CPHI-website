@@ -14,21 +14,27 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/style.css?v=20261027-8">
 </head>
 <body>
   <script>
-    // another expo's link (not /, /invite or a cached page): hide CPHI's built-in text until its own settings arrive
     (function () {
-      var seg = location.pathname.split('/').filter(Boolean)[0] || '';
-      var id = /^(invite|index\.html)$/.test(seg) ? '' : seg || new URLSearchParams(location.search).get('expo') || '';
-      try { if (id && !localStorage.getItem('rp_expo_' + id)) document.body.classList.add('expo-loading'); } catch (e) { if (id) document.body.classList.add('expo-loading'); }
+      var segs = location.pathname.split('/').filter(Boolean);
+      // a company's dashboard: /xyz/admin
+      if (segs[1] === 'admin') { location.replace('/admin?c=' + encodeURIComponent(segs[0])); return; } // not admin.html: that redirects, and can't open offline
+      // any link but RP's / and /invite: hide RP's built-in text until that page's own settings arrive
+      var key = segs.filter(function (s) { return s !== 'index.html'; }).join('/') || new URLSearchParams(location.search).get('expo') || '';
+      if (key === 'invite') key = '';
+      if (key) document.title = 'Book a meeting';
+      try { if (key && !localStorage.getItem('bk_' + key)) document.body.classList.add('expo-loading'); } catch (e) { if (key) document.body.classList.add('expo-loading'); }
     })();
   </script>
 
+  <p class="preview-note" id="previewNote" hidden>Preview: this booking page isn't live yet, so nothing can be booked.</p>
+
   <header class="header">
     <div class="wrap header__in">
-      <a href="#" class="logo"><img src="/assets/rp-logo.png" alt="RP Industries" width="302" height="386"></a>
+      <a href="#" class="logo"><img src="/assets/rp-logo.png" alt="RP Industries" width="302" height="386" data-brand-logo></a>
       <a class="btn btn--sm" href="#book">Book a meeting</a>
     </div>
   </header>
@@ -96,12 +102,13 @@
 
   <footer class="footer">
     <div class="wrap footer__in">
-      <p>© 2026 RP Industries · Quality Matters First</p>
+      <p>© <span id="footYear">2026</span> <span data-brand-name>RP Industries</span><span id="footTag"> · Quality Matters First</span></p>
       <p id="footerExpo">CPHI India 2026 · Booth 2B59, Hall 2</p>
     </div>
   </footer>
 
-  <script src="/js/config.js"></script>
-  <script src="/js/main.js" defer></script>
+  <script src="/js/config.js?v=20261027-8"></script>
+  <script src="/js/brand.js?v=20261027-8" defer></script>
+  <script src="/js/main.js?v=20261027-8" defer></script>
 </body>
 </html>
