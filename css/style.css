@@ -187,3 +187,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* a company without a logo (or one that won't load): its name in the header */
+.brand-word { font-size: 20px; font-weight: 700; letter-spacing: -.01em; color: var(--navy); }
+.login__box .brand-word { display: block; margin-bottom: 24px; font-size: 24px; }

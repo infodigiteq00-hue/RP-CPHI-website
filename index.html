@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="/css/style.css?v=20261027-10">
+  <link rel="stylesheet" href="/css/style.css?v=20261027-11">
   <script>
     // This page is RP Industries' page until a link's own settings arrive. On any link but RP's / and /invite,
     // nothing of RP's (logo, banner, title, tab icon, colours) is shown meanwhile: on a repeat visit the
@@ -35,6 +35,7 @@
       if (look) {
         for (var k in look.vars) html.style.setProperty(k, look.vars[k]);
         if (look.title) document.title = look.title;
+        window.__brandLook = look;
       }
       var icon = document.querySelector('link[rel="icon"]');
       if (icon) icon.href = look && look.logo ? look.logo : 'data:,';
@@ -51,6 +52,15 @@
       <a class="btn btn--sm" href="#book">Book a meeting</a>
     </div>
   </header>
+  <script>
+      // a company's page: RP's logo is never loaded here. On a repeat visit the company's comes straight from the
+      // copy of its look on this device; js/brand.js shows it once it has loaded.
+      if (/\bco-page\b/.test(document.documentElement.className)) document.querySelectorAll('[data-brand-logo]:not([data-stripped])').forEach(function (img) {
+        img.setAttribute('data-stripped', '');
+        if (window.__brandLook && window.__brandLook.logo) { img.onload = function () { img.setAttribute('data-ready', '1'); }; img.src = window.__brandLook.logo; }
+        else img.removeAttribute('src');
+      });
+    </script>
 
   <section class="hero">
     <picture id="heroPicture">
@@ -128,8 +138,8 @@
     </div>
   </footer>
 
-  <script src="/js/config.js?v=20261027-10"></script>
-  <script src="/js/brand.js?v=20261027-10" defer></script>
-  <script src="/js/main.js?v=20261027-10" defer></script>
+  <script src="/js/config.js?v=20261027-11"></script>
+  <script src="/js/brand.js?v=20261027-11" defer></script>
+  <script src="/js/main.js?v=20261027-11" defer></script>
 </body>
 </html>

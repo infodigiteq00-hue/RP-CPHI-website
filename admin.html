@@ -9,8 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="css/style.css?v=20261027-10">
-  <link rel="stylesheet" href="css/admin.css?v=20261027-10">
+  <link rel="stylesheet" href="css/style.css?v=20261027-11">
+  <link rel="stylesheet" href="css/admin.css?v=20261027-11">
   <script>
     // A company's dashboard (?c=…) starts as RP Industries' page: hide RP's logo, name, title and tab icon
     // until the company's own arrive. On a repeat visit its colours, title and icon come straight from this device.
@@ -25,6 +25,7 @@
       if (look) {
         for (var k in look.vars) html.style.setProperty(k, look.vars[k]);
         if (look.title) document.title = look.title;
+        window.__brandLook = look;
       }
       var icon = document.querySelector('link[rel="icon"]');
       if (icon) icon.href = look && look.logo ? look.logo : 'data:,';
@@ -37,6 +38,15 @@
   <main class="login" id="loginView">
     <form class="login__box" id="loginForm" novalidate>
       <img src="assets/rp-logo.png" alt="RP Industries" width="302" height="386" data-brand-logo>
+      <script>
+      // a company's page: RP's logo is never loaded here. On a repeat visit the company's comes straight from the
+      // copy of its look on this device; js/brand.js shows it once it has loaded.
+      if (/\bco-page\b/.test(document.documentElement.className)) document.querySelectorAll('[data-brand-logo]:not([data-stripped])').forEach(function (img) {
+        img.setAttribute('data-stripped', '');
+        if (window.__brandLook && window.__brandLook.logo) { img.onload = function () { img.setAttribute('data-ready', '1'); }; img.src = window.__brandLook.logo; }
+        else img.removeAttribute('src');
+      });
+    </script>
       <h1>Admin login</h1>
       <p class="muted"><span data-brand-name>RP Industries</span> expo meetings</p>
       <div class="field">
@@ -63,6 +73,15 @@
         </div>
       </div>
     </header>
+    <script>
+      // a company's page: RP's logo is never loaded here. On a repeat visit the company's comes straight from the
+      // copy of its look on this device; js/brand.js shows it once it has loaded.
+      if (/\bco-page\b/.test(document.documentElement.className)) document.querySelectorAll('[data-brand-logo]:not([data-stripped])').forEach(function (img) {
+        img.setAttribute('data-stripped', '');
+        if (window.__brandLook && window.__brandLook.logo) { img.onload = function () { img.setAttribute('data-ready', '1'); }; img.src = window.__brandLook.logo; }
+        else img.removeAttribute('src');
+      });
+    </script>
 
     <div class="netbar" id="netBar" role="status" hidden></div>
 
@@ -465,16 +484,16 @@
     </div>
   </dialog>
 
-  <script src="js/config.js?v=20261027-10"></script>
-  <script src="js/brand.js?v=20261027-10"></script>
-  <script src="js/offline.js?v=20261027-10" defer></script>
-  <script src="js/admin.js?v=20261027-10" defer></script>
-  <script src="js/minutes.js?v=20261027-10" defer></script>
-  <script src="js/followup.js?v=20261027-10" defer></script>
-  <script src="js/expos.js?v=20261027-10" defer></script>
-  <script src="js/invite.js?v=20261027-10" defer></script>
-  <script src="js/ink.js?v=20261027-10" defer></script>
-  <script src="js/meeting.js?v=20261027-10" defer></script>
-  <script src="js/decide.js?v=20261027-10" defer></script>
+  <script src="js/config.js?v=20261027-11"></script>
+  <script src="js/brand.js?v=20261027-11"></script>
+  <script src="js/offline.js?v=20261027-11" defer></script>
+  <script src="js/admin.js?v=20261027-11" defer></script>
+  <script src="js/minutes.js?v=20261027-11" defer></script>
+  <script src="js/followup.js?v=20261027-11" defer></script>
+  <script src="js/expos.js?v=20261027-11" defer></script>
+  <script src="js/invite.js?v=20261027-11" defer></script>
+  <script src="js/ink.js?v=20261027-11" defer></script>
+  <script src="js/meeting.js?v=20261027-11" defer></script>
+  <script src="js/decide.js?v=20261027-11" defer></script>
 </body>
 </html>

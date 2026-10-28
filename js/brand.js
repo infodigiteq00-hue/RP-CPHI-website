@@ -75,13 +75,29 @@ window.Brand = (() => {
     const logo = logoUrl(company);
     const backup = company.brand.logoBackup;
     el.querySelectorAll("[data-brand-logo]").forEach((img) => {
-      // the copy in the company's Drive, if the original (on their website) won't load
-      img.onerror = backup ? () => { img.onerror = null; img.src = backup; } : null;
-      if (logo) { if (img.getAttribute("src") !== logo) img.src = logo; img.hidden = false; } else img.hidden = true;
       img.alt = name;
       img.removeAttribute("width");
       img.removeAttribute("height");
-      img.dataset.ready = "1"; // company pages keep logos hidden until this (see style.css: .co-page)
+      // the company's name in place of a logo it doesn't have (or that won't load)
+      let word = img.nextElementSibling;
+      if (!word || !word.classList.contains("brand-word")) {
+        word = document.createElement("span");
+        word.className = "brand-word";
+        img.after(word);
+      }
+      word.textContent = name;
+      const noLogo = () => { img.hidden = true; img.removeAttribute("src"); word.hidden = false; img.dataset.ready = "1"; };
+      if (!logo) return noLogo();
+      word.hidden = true;
+      img.hidden = false;
+      if (img.getAttribute("src") === logo && img.complete && img.naturalWidth) { img.dataset.ready = "1"; return; }
+      // Company pages keep a logo hidden until it has loaded (style.css: .co-page): a browser goes on showing the
+      // previous picture while a new one loads, and that picture must never be RP's.
+      delete img.dataset.ready;
+      img.onload = () => { img.dataset.ready = "1"; };
+      // the copy in the company's Drive if the original (on their website) won't load; then the name
+      img.onerror = () => { if (backup && img.getAttribute("src") !== backup) img.src = backup; else noLogo(); };
+      img.src = logo;
     });
     el.querySelectorAll("[data-brand-name]").forEach((n) => { n.textContent = name; n.dataset.ready = "1"; });
     if (el === document.documentElement) {
