@@ -33,6 +33,7 @@ function inviteParts(e) {
     navy: colors["--navy"], accent: colors["--green"],
     logo: window.Brand.logoUrl(c),
     banner: e.emailBanner || e.banner || (isRP() ? `${location.origin}/assets/email-banner.jpg` : ""),
+    certs: isRP() ? [`${location.origin}/assets/email-certs.png`] : c.brand.certs || [], // certificate badges, beside the logo
     dates: inviteDates(e.days),
     link: inviteLink(e),
     subject: `Meet ${who} at ${e.name}${booth ? ` · Booth ${booth}` : ""}`,
@@ -106,7 +107,13 @@ function inviteHtml(e) {
         <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px; background-color:#ffffff; border:1px solid #d9dee7;">
           ${p.logo ? `<tr>
             <td class="px" style="padding:18px 40px 16px 40px;">
-              <img src="${esc(p.logo)}" height="56" alt="${esc(p.who)}" style="display:block; height:56px; width:auto; max-width:220px; ${f} font-size:18px; font-weight:bold; color:${p.navy};">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+                <td valign="middle"><img src="${esc(p.logo)}" height="56" alt="${esc(p.who)}" style="display:block; height:56px; width:auto; max-width:220px; ${f} font-size:18px; font-weight:bold; color:${p.navy};"></td>
+                ${p.certs.length ? `<td align="right" valign="middle" style="padding-left:16px;">${p.certs.map((u) =>
+                  // one image is a strip of badges (RP's): it shrinks on phones; several are single badges
+                  p.certs.length === 1 ? `<img src="${esc(u)}" width="360" alt="Certifications" style="display:block; width:100%; max-width:360px; height:auto;">`
+                    : `<img src="${esc(u)}" height="40" alt="" style="display:inline-block; height:40px; width:auto; max-width:64px; margin:2px 0 2px 8px; vertical-align:middle;">`).join("")}</td>` : ""}
+              </tr></table>
             </td>
           </tr>` : `<tr><td class="px" style="padding:20px 40px 16px 40px; ${f} font-size:20px; font-weight:bold; color:${p.navy};">${esc(p.who)}</td></tr>`}
           ${p.banner ? `<tr>

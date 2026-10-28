@@ -241,6 +241,8 @@ function renderEdit() {
   const d = state.draft;
   const c = state.candidates || {};
   const logos = c.logos || [];
+  const chosen = d.brand.certs || [];
+  const certs = [...chosen, ...(c.certs || []).filter((u) => !chosen.includes(u))];
   const fonts = [window.Brand.DEFAULT_FONT, ...(c.fonts || []).filter((f) => f.google).map((f) => f.name), d.brand.font]
     .filter((f, i, a) => f && a.indexOf(f) === i);
   $("#editView").innerHTML = `
@@ -271,6 +273,13 @@ function renderEdit() {
           ${logos.length ? `<div class="logo-pick">${logos.map((l) => `<button type="button" class="logo-opt" data-logo="${esc(l.url)}" aria-pressed="${l.url === d.brand.logo}" title="${esc(l.why)}">
             <img src="${esc(l.url)}" alt="" loading="lazy"><small>${esc(l.why)}</small></button>`).join("")}</div>` : ""}
           ${fld("Logo link", "brand.logo", { full: true, ph: "https://…/logo.png", hint: "A PNG or JPG works best in emails. It's copied to the company's Drive folder when you save." })}
+        </section>
+
+        <section class="set">
+          <h2>Certificates</h2>
+          <p class="muted">Shown beside the logo in the invite email. Click one to add or remove it.</p>
+          ${certs.length ? `<div class="logo-pick">${certs.map((u) => `<button type="button" class="logo-opt" data-cert="${esc(u)}" aria-pressed="${chosen.includes(u)}">
+            <img src="${esc(u)}" alt="" loading="lazy"></button>`).join("")}</div>` : `<p class="muted">None found on the website.</p>`}
         </section>
 
         <section class="set">
@@ -428,6 +437,12 @@ $("#editView").addEventListener("click", async (e) => {
   if (cl) { set(state.draft, cl.dataset.clear, ""); return renderEdit(); }
   const lg = e.target.closest("[data-logo]");
   if (lg) { state.draft.brand.logo = lg.dataset.logo; return renderEdit(); }
+  const ct = e.target.closest("[data-cert]");
+  if (ct) {
+    const list = state.draft.brand.certs || [];
+    state.draft.brand.certs = list.includes(ct.dataset.cert) ? list.filter((u) => u !== ct.dataset.cert) : [...list, ct.dataset.cert].slice(0, 8);
+    return renderEdit();
+  }
   if (e.target.id === "genPw") {
     const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     const rnd = crypto.getRandomValues(new Uint32Array(14));
@@ -450,6 +465,7 @@ async function reread(btn) {
     if (!r.ok) throw Object.assign(new Error(r.error), { detail: r.detail });
     state.draft.profile.brief = r.company.profile.brief;
     state.draft.profile.pitch = r.company.profile.pitch;
+    if (!(state.draft.brand.certs || []).length) state.draft.brand.certs = r.company.brand.certs;
     state.candidates = r.candidates;
     renderEdit();
     state.savedNote = "";
