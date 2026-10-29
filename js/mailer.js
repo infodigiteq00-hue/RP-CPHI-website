@@ -1,14 +1,21 @@
-// Expo meetings · owners' dashboard: the mailer. A client's email goes to their list from the Gmail that runs the
-// Apps Script, at most 50 a day; the rest go out on the next days by themselves. Loaded after super.js and
-// invite-mail.js; uses $, esc, api(), token(), show(), state.companies and inviteHtml().
+// Expo meetings · admin: the mailer. The company connects its own Gmail once (Connect with Google: Google's pop-up
+// gives a one-time code that the server swaps for lasting permission to send), then sends an email to a list from it,
+// at most the daily limit the platform owners set; the rest go out on the next days by themselves.
+// Loaded after admin.js and invite-mail.js; uses $, esc(), api(), store, TOKEN_KEY, state and inviteHtml().
 
 const MAIL_ERRORS = {
   empty: "Add a subject and a message.",
   no_recipients: "Add at least one email address.",
   too_many: "That's more than 2,000 people. Split the list.",
   invalid_reply_to: "The reply-to address doesn't look right.",
+  not_connected: "Connect your Gmail first.",
+  not_set_up: "Email sending isn't switched on for this platform yet. Ask the platform owners.",
+  no_send_permission: "Google wasn't given permission to send email. Connect again and leave “Send email on your behalf” ticked.",
+  no_refresh: "Google didn't give lasting permission. Remove this app at myaccount.google.com/permissions, then connect again.",
   busy: "The sheet is busy. Try again in a moment.",
 };
+const mail = { status: null, perDay: 50 };
+const mailToken = () => store.get(TOKEN_KEY);
 
 // "email, name" lines (or a CSV with any columns): the cell with an @ is the email, the next one the name
 function parseList(text) {
@@ -21,49 +28,115 @@ function parseList(text) {
 
 function countLine() {
   const n = parseList($("#mList").value).length;
-  $("#mCount").textContent = n ? `${n} ${n === 1 ? "person" : "people"}${n > 50 ? ` · about ${Math.ceil(n / 50)} days at 50 a day` : ""}` : "";
+  const d = mail.perDay;
+  $("#mCount").textContent = n ? `${n} ${n === 1 ? "person" : "people"}${n > d ? ` · about ${Math.ceil(n / d)} days at ${d} a day` : ""}` : "";
+}
+
+function renderConn(r) {
+  const a = r.account;
+  $("#mConn").innerHTML = !r.clientId ? `<p class="muted">${MAIL_ERRORS.not_set_up}</p>`
+    : !a ? `<p class="muted">Send emails to your clients from your own Gmail. Connect it once: choose your account and allow sending.</p>
+        <button class="btn" type="button" id="mConnect">Connect with Google</button>`
+    : a.error ? `<p class="err">Google stopped the permission for ${esc(a.email)}. Waiting emails will go out once you connect again.</p>
+        <button class="btn" type="button" id="mConnect">Connect with Google</button>`
+    : `<p>Sending as <b>${esc(a.name ? `${a.name} <${a.email}>` : a.email)}</b></p>
+        <button class="link" type="button" id="mDisconnect">Disconnect</button>`;
+  $("#mailSend").disabled = !(a && !a.error);
 }
 
 function renderMail(r) {
+  mail.status = r;
+  mail.perDay = r.perDay;
+  renderConn(r);
   $("#mailToday").textContent = `${r.sentToday} of ${r.perDay} sent today. What's left goes out by itself on the next days.`;
   $("#mailRows").innerHTML = r.campaigns.length ? r.campaigns.map((c) => `<tr>
       <td data-label="Subject">${esc(c.subject)}${c.errors.length ? `<br><small class="muted">${c.errors.map(esc).join("<br>")}</small>` : ""}</td>
-      <td data-label="From">${esc(c.fromName || "")}${c.replyTo ? `<br><small class="muted">${esc(c.replyTo)}</small>` : ""}</td>
-      <td data-label="Created">${esc(c.created)}</td>
+      <td data-label="Created">${esc(c.created)}${c.by ? `<br><small class="muted">${esc(c.by)}</small>` : ""}</td>
       <td data-label="Sent">${c.sent}</td>
       <td data-label="Waiting">${c.waiting}${c.stopped ? ` <small class="muted">(${c.stopped} stopped)</small>` : ""}</td>
       <td data-label="Failed">${c.failed}</td>
       <td>${c.waiting ? `<button class="link" type="button" data-stop="${esc(c.id)}">Stop</button>` : ""}</td>
-    </tr>`).join("") : `<tr><td colspan="7" class="muted">Nothing sent yet.</td></tr>`;
+    </tr>`).join("") : `<tr><td colspan="6" class="muted">Nothing sent yet.</td></tr>`;
+  countLine();
 }
 
-async function loadMail() {
-  $("#mailToday").textContent = "Loading…";
+// the expos' invite emails, and the company name as the sender
+function fillStart() {
+  const expos = (state.expos || []).filter((e) => e.status === "Active");
+  $("#mStart").innerHTML = `<option value="">Your own email</option>${expos.map((e) => `<option value="${esc(e.id)}">Invite: ${esc(e.name)}</option>`).join("")}`;
+  const c = state.company;
+  if (c && !$("#mFrom").value) $("#mFrom").value = c.profile.shortName || c.name;
+}
+
+async function openMailer() {
+  fillStart();
   try {
-    const r = await api("superMailList", { token: token() });
+    const r = await api("mailStatus", { token: mailToken() });
     if (r.ok) renderMail(r);
   } catch (ex) {
-    if (ex.message !== "auth") $("#mailToday").textContent = "Couldn't load. Try again.";
+    if (ex.message !== "auth") $("#mConn").innerHTML = `<p class="err">Couldn't load. Check your connection and try again.</p>`;
   }
 }
 
-// "Start from": each company's invite email for each of its active expos
-function renderStart() {
-  const opts = state.companies.flatMap((c) => (c.expos || []).map((e) => `<option value="${esc(c.id)}|${esc(e.id)}">${esc(c.profile.shortName || c.name)} · ${esc(e.name)}</option>`));
-  $("#mStart").innerHTML = `<option value="">Your own email</option>${opts.join("")}`;
+// Connect with Google: Google's own pop-up, then the one-time code goes to the server
+function loadGoogle() {
+  if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
+  return new Promise((ok, fail) => {
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.onload = ok;
+    s.onerror = () => fail(new Error("google_unreachable"));
+    document.head.appendChild(s);
+  });
 }
-$("#mStart").addEventListener("change", () => {
-  const [cid, eid] = $("#mStart").value.split("|");
-  const c = state.companies.find((x) => x.id === cid);
-  const e = c && (c.expos || []).find((x) => x.id === eid);
-  if (!e) return;
-  $("#mFrom").value = c.profile.shortName || c.name;
-  $("#mReply").value = (c.profile.signature && c.profile.signature.email) || "";
-  $("#mSubject").value = inviteParts(e, c).subject;
-  $("#mMessage").value = inviteHtml(e, c);
+async function connectGoogle(btn) {
+  btn.disabled = true;
+  try {
+    await loadGoogle();
+  } catch {
+    btn.disabled = false;
+    return alert("Couldn't reach Google. Check your connection and try again.");
+  }
+  const client = google.accounts.oauth2.initCodeClient({
+    client_id: mail.status.clientId,
+    scope: "openid email profile https://www.googleapis.com/auth/gmail.send",
+    ux_mode: "popup",
+    select_account: true,
+    login_hint: mail.status.account ? mail.status.account.email : undefined,
+    callback: async (resp) => {
+      if (resp.error) { btn.disabled = false; return; }
+      $("#mConn").innerHTML = `<p class="muted">Connecting…</p>`;
+      try {
+        const r = await api("mailConnect", { token: mailToken(), code: resp.code });
+        if (!r.ok) throw Object.assign(new Error(r.error), { detail: r.detail });
+        renderMail(r);
+      } catch (ex) {
+        if (ex.message === "auth") return;
+        renderConn(mail.status);
+        alert(MAIL_ERRORS[ex.message] || (ex.detail ? `Couldn't connect: ${ex.detail}` : "Couldn't connect. Try again."));
+      }
+    },
+    error_callback: () => { btn.disabled = false; }, // pop-up closed or blocked
+  });
+  client.requestCode();
+}
+
+$("#mConn").addEventListener("click", async (e) => {
+  if (e.target.id === "mConnect") return connectGoogle(e.target);
+  if (e.target.id !== "mDisconnect" || !confirm("Disconnect this Gmail? Waiting emails stay waiting until you connect one again.")) return;
+  e.target.disabled = true;
+  try {
+    const r = await api("mailDisconnect", { token: mailToken() });
+    if (r.ok) renderMail(r);
+  } catch (ex) { e.target.disabled = false; }
 });
 
-$("#mailerBtn").addEventListener("click", () => { show("mail"); renderStart(); loadMail(); });
+$("#mStart").addEventListener("change", () => {
+  const e = (state.expos || []).find((x) => x.id === $("#mStart").value);
+  if (!e) return;
+  $("#mSubject").value = inviteParts(e, state.company).subject;
+  $("#mMessage").value = inviteHtml(e, state.company);
+});
 $("#mList").addEventListener("input", countLine);
 $("#mFile").addEventListener("change", async (e) => {
   const f = e.target.files[0];
@@ -76,28 +149,28 @@ $("#mFile").addEventListener("change", async (e) => {
 $("#mailForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const err = $("#mailErr");
+  const showErr = (m) => { err.textContent = m; err.hidden = false; };
   err.hidden = true;
   const recipients = parseList($("#mList").value);
-  const data = { token: token(), fromName: $("#mFrom").value.trim(), replyTo: $("#mReply").value.trim(),
+  const data = { token: mailToken(), fromName: $("#mFrom").value.trim(), replyTo: $("#mReply").value.trim(),
     subject: $("#mSubject").value.trim(), message: $("#mMessage").value, recipients };
-  if (!data.subject || !data.message.trim()) { err.textContent = MAIL_ERRORS.empty; err.hidden = false; return; }
-  if (!recipients.length) { err.textContent = MAIL_ERRORS.no_recipients; err.hidden = false; return; }
-  if (!confirm(`Send "${data.subject}" to ${recipients.length} ${recipients.length === 1 ? "person" : "people"}? Up to 50 go out today from your Gmail.`)) return;
+  if (!data.subject || !data.message.trim()) return showErr(MAIL_ERRORS.empty);
+  if (!recipients.length) return showErr(MAIL_ERRORS.no_recipients);
+  const n = recipients.length;
+  if (!confirm(`Send "${data.subject}" to ${n} ${n === 1 ? "person" : "people"} from ${mail.status.account.email}? Up to ${mail.perDay} go out a day.`)) return;
   const btn = $("#mailSend");
   btn.disabled = true;
   btn.textContent = "Sending…";
   try {
-    const r = await api("superQueueMail", data);
+    const r = await api("queueMail", data);
     if (!r.ok) throw new Error(r.error);
+    ["mStart", "mSubject", "mMessage", "mList"].forEach((id) => { $(`#${id}`).value = ""; });
     renderMail(r);
-    $("#mailForm").reset();
-    renderStart();
-    countLine();
   } catch (ex) {
-    if (ex.message !== "auth") { err.textContent = MAIL_ERRORS[ex.message] || "Couldn't send. Check your connection and try again."; err.hidden = false; }
+    if (ex.message !== "auth") showErr(MAIL_ERRORS[ex.message] || "Couldn't send. Check your connection and try again.");
   } finally {
-    btn.disabled = false;
     btn.textContent = "Send";
+    if (mail.status) renderConn(mail.status);
   }
 });
 
@@ -106,7 +179,7 @@ $("#mailRows").addEventListener("click", async (e) => {
   if (!b || !confirm("Stop this mail? Nobody who hasn't got it yet will get it.")) return;
   b.disabled = true;
   try {
-    const r = await api("superStopMail", { token: token(), id: b.dataset.stop });
+    const r = await api("stopMail", { token: mailToken(), id: b.dataset.stop });
     if (r.ok) renderMail(r);
   } catch (ex) { b.disabled = false; }
 });

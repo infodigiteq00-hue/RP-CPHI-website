@@ -255,7 +255,7 @@ function renderExpoSelect() {
   const opt = (e) => `<option value="${esc(e.id)}"${e.id === state.expoId ? " selected" : ""}>${esc(e.name)}${e.isDefault ? " (default)" : ""}</option>`;
   $("#expoSelect").innerHTML = active.map(opt).join("") +
     (archived.length ? `<optgroup label="Archived">${archived.map(opt).join("")}</optgroup>` : "");
-  $("#expoSelect").closest(".expo-pick").hidden = !state.expos.length;
+  $("#expoSelect").closest(".expo-pick").hidden = !state.expos.length || state.view === "mailer";
 }
 function pickExpo(id) {
   state.expoId = id;
@@ -344,7 +344,7 @@ function fmtDay(d) {
 
 // ---------- views ----------
 function showView(view) {
-  state.view = ["scheduled", "slots", "settings"].includes(view) ? view : "requests";
+  state.view = ["scheduled", "slots", "settings", "mailer"].includes(view) ? view : "requests";
   store.set(VIEW_KEY, state.view);
   try { history.replaceState(null, "", `#${state.view}`); } catch {} // admin.html#scheduled opens this view
   $("#viewTabs").querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.view === state.view)));
@@ -352,10 +352,14 @@ function showView(view) {
   $("#scheduledView").hidden = state.view !== "scheduled";
   $("#slotsView").hidden = state.view !== "slots";
   $("#settingsView").hidden = state.view !== "settings";
+  $("#mailerView").hidden = state.view !== "mailer";
+  // the mailer isn't about one expo
+  $("#countLine").hidden = state.view === "mailer";
+  $(".expo-pick").hidden = state.view === "mailer" || !(state.expos || []).length;
   $("#csvBtn").hidden = !["requests", "scheduled"].includes(state.view);
-  $("#addMeetingBtn").hidden = state.view === "settings";
-  $("#refreshBtn").hidden = state.view === "settings";
-  if (!$("#appView").hidden) render();
+  $("#addMeetingBtn").hidden = ["settings", "mailer"].includes(state.view);
+  $("#refreshBtn").hidden = ["settings", "mailer"].includes(state.view);
+  if (!$("#appView").hidden) state.view === "mailer" ? openMailer() : render();
 }
 $("#viewTabs").addEventListener("click", (e) => {
   const b = e.target.closest(".tab");
@@ -366,6 +370,7 @@ $("#viewTabs").addEventListener("click", (e) => {
 });
 
 function render() {
+  if (state.view === "mailer") return; // js/mailer.js keeps its own page
   if (state.view === "slots") return renderAvail();
   if (state.view === "scheduled") return renderScheduled();
   if (state.view === "settings") return renderSettings(); // js/expos.js
