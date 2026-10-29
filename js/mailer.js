@@ -1,6 +1,6 @@
 // Expo meetings · owners' dashboard: the mailer. A client's email goes to their list from the Gmail that runs the
-// Apps Script, at most 50 a day; the rest go out on the next days by themselves. Loaded after super.js; uses $, esc,
-// api(), token() and show().
+// Apps Script, at most 50 a day; the rest go out on the next days by themselves. Loaded after super.js and
+// invite-mail.js; uses $, esc, api(), token(), show(), state.companies and inviteHtml().
 
 const MAIL_ERRORS = {
   empty: "Add a subject and a message.",
@@ -47,7 +47,23 @@ async function loadMail() {
   }
 }
 
-$("#mailerBtn").addEventListener("click", () => { show("mail"); loadMail(); });
+// "Start from": each company's invite email for each of its active expos
+function renderStart() {
+  const opts = state.companies.flatMap((c) => (c.expos || []).map((e) => `<option value="${esc(c.id)}|${esc(e.id)}">${esc(c.profile.shortName || c.name)} · ${esc(e.name)}</option>`));
+  $("#mStart").innerHTML = `<option value="">Your own email</option>${opts.join("")}`;
+}
+$("#mStart").addEventListener("change", () => {
+  const [cid, eid] = $("#mStart").value.split("|");
+  const c = state.companies.find((x) => x.id === cid);
+  const e = c && (c.expos || []).find((x) => x.id === eid);
+  if (!e) return;
+  $("#mFrom").value = c.profile.shortName || c.name;
+  $("#mReply").value = (c.profile.signature && c.profile.signature.email) || "";
+  $("#mSubject").value = inviteParts(e, c).subject;
+  $("#mMessage").value = inviteHtml(e, c);
+});
+
+$("#mailerBtn").addEventListener("click", () => { show("mail"); renderStart(); loadMail(); });
 $("#mList").addEventListener("input", countLine);
 $("#mFile").addEventListener("change", async (e) => {
   const f = e.target.files[0];
@@ -75,6 +91,7 @@ $("#mailForm").addEventListener("submit", async (e) => {
     if (!r.ok) throw new Error(r.error);
     renderMail(r);
     $("#mailForm").reset();
+    renderStart();
     countLine();
   } catch (ex) {
     if (ex.message !== "auth") { err.textContent = MAIL_ERRORS[ex.message] || "Couldn't send. Check your connection and try again."; err.hidden = false; }

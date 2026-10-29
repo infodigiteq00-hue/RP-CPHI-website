@@ -79,5 +79,5 @@
 .mailer { max-width: 760px; }
 .mailer .set__grid { align-items: start; }
 .mailer .field, .mailer .field + .field { margin: 0 0 14px; }
-.mailer .field input, .mailer .field textarea { width: 100%; }
+.mailer .field input, .mailer .field textarea, .mailer .field select { width: 100%; }
 .mailer__h { margin: 32px 0 12px; font-size: 18px; color: var(--navy); }

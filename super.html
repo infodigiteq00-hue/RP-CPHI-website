@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="css/style.css?v=20261027-11">
   <link rel="stylesheet" href="css/admin.css?v=20261027-11">
-  <link rel="stylesheet" href="css/super.css?v=20261029-1">
+  <link rel="stylesheet" href="css/super.css?v=20261029-2">
 </head>
 <body class="admin super">
 
@@ -95,6 +95,8 @@
         </div>
         <form class="set mailer" id="mailForm" novalidate>
           <h2>New mail</h2>
+          <div class="field"><label for="mStart">Start from</label><select id="mStart"></select>
+            <p class="hint">A company's invite email for one of its expos: fills in the sender, reply-to, subject and message.</p></div>
           <div class="set__grid">
             <div class="field"><label for="mFrom">From name</label><input id="mFrom" placeholder="Tinita Engineering">
               <p class="hint">Shown as the sender. The address is the Gmail that runs the Apps Script.</p></div>
@@ -124,6 +126,7 @@
   <script src="js/config.js?v=20261027-11"></script>
   <script src="js/brand.js?v=20261027-11"></script>
   <script src="js/super.js?v=20261029-1" defer></script>
-  <script src="js/mailer.js?v=20261029-1" defer></script>
+  <script src="js/invite-mail.js?v=20261029-2" defer></script>
+  <script src="js/mailer.js?v=20261029-2" defer></script>
 </body>
 </html>
