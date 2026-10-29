@@ -76,6 +76,7 @@ function show(view) {
   $("#listView").hidden = view !== "list";
   $("#readView").hidden = view !== "read";
   $("#editView").hidden = view !== "edit";
+  $("#mailView").hidden = view !== "mail";
   window.scrollTo(0, 0);
 }
 const dirty = () => !!state.draft && JSON.stringify(state.draft) !== state.original;

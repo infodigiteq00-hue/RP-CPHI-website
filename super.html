@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="css/style.css?v=20261027-11">
   <link rel="stylesheet" href="css/admin.css?v=20261027-11">
-  <link rel="stylesheet" href="css/super.css?v=20261027-11">
+  <link rel="stylesheet" href="css/super.css?v=20261029-1">
 </head>
 <body class="admin super">
 
@@ -54,6 +54,7 @@
           </div>
           <div class="results__actions">
             <button class="btn btn--outline btn--sm" type="button" id="refreshBtn">Refresh</button>
+            <button class="btn btn--outline btn--sm" type="button" id="mailerBtn">Mailer</button>
             <button class="btn btn--sm" type="button" id="addBtn">Add company</button>
           </div>
         </div>
@@ -85,11 +86,44 @@
 
       <!-- review and edit a company -->
       <div id="editView" hidden></div>
+
+      <!-- the mailer: a client's email to a list, from this Google account's Gmail -->
+      <div id="mailView" hidden>
+        <button class="link back" type="button" data-back>&larr; Companies</button>
+        <div class="results__head">
+          <div><h1>Mailer</h1><p class="muted" id="mailToday"></p></div>
+        </div>
+        <form class="set mailer" id="mailForm" novalidate>
+          <h2>New mail</h2>
+          <div class="set__grid">
+            <div class="field"><label for="mFrom">From name</label><input id="mFrom" placeholder="Tinita Engineering">
+              <p class="hint">Shown as the sender. The address is the Gmail that runs the Apps Script.</p></div>
+            <div class="field"><label for="mReply">Replies go to</label><input id="mReply" type="email" placeholder="sales@client.com">
+              <p class="hint">The client's email, so replies reach them.</p></div>
+          </div>
+          <div class="field"><label for="mSubject">Subject</label><input id="mSubject"></div>
+          <div class="field"><label for="mMessage">Message</label><textarea id="mMessage" rows="10"></textarea>
+            <p class="hint">Plain text, or the client's HTML email. <b>{name}</b> becomes each person's name.</p></div>
+          <div class="field"><label for="mList">Send to</label><textarea id="mList" rows="6" placeholder="asha@example.com, Asha Rao&#10;john@example.com, John Lee"></textarea>
+            <p class="hint">One person per line: email, then name. Or <label class="link" for="mFile">upload a CSV</label><input id="mFile" type="file" accept=".csv,.txt" hidden>.</p></div>
+          <p class="muted" id="mCount"></p>
+          <p class="err" id="mailErr" hidden></p>
+          <button class="btn" type="submit" id="mailSend">Send</button>
+        </form>
+        <h2 class="mailer__h">Sent</h2>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Subject</th><th>From</th><th>Created</th><th>Sent</th><th>Waiting</th><th>Failed</th><th></th></tr></thead>
+            <tbody id="mailRows"></tbody>
+          </table>
+        </div>
+      </div>
     </main>
   </div>
 
   <script src="js/config.js?v=20261027-11"></script>
   <script src="js/brand.js?v=20261027-11"></script>
-  <script src="js/super.js?v=20261028-1" defer></script>
+  <script src="js/super.js?v=20261029-1" defer></script>
+  <script src="js/mailer.js?v=20261029-1" defer></script>
 </body>
 </html>
