@@ -34,21 +34,22 @@ function countLine() {
 
 function renderConn(r) {
   const a = r.account;
-  $("#mConn").innerHTML = !r.clientId ? `<p class="muted">${MAIL_ERRORS.not_set_up}</p>`
-    : !a ? `<p class="muted">Send emails to your clients from your own Gmail. Connect it once: choose your account and allow sending.</p>
-        <button class="btn" type="button" id="mConnect">Connect with Google</button>`
+  const shared = "Mails go out from the platform's Gmail, under your company name, with replies coming to you if you fill in Replies go to.";
+  $("#mConn").innerHTML = !a ? `<p class="muted">${shared}${r.clientId ? " To send from your own Gmail address instead, connect it." : ""}</p>
+        ${r.clientId ? `<button class="btn btn--outline" type="button" id="mConnect">Connect with Google</button>` : ""}`
     : a.error ? `<p class="err">Google stopped the permission for ${esc(a.email)}. Waiting emails will go out once you connect again.</p>
         <button class="btn" type="button" id="mConnect">Connect with Google</button>`
     : `<p>Sending as <b>${esc(a.name ? `${a.name} <${a.email}>` : a.email)}</b></p>
         <button class="link" type="button" id="mDisconnect">Disconnect</button>`;
-  $("#mailSend").disabled = !(a && !a.error);
+  $("#mailSend").disabled = !!(a && a.error);
 }
 
 function renderMail(r) {
   mail.status = r;
   mail.perDay = r.perDay;
   renderConn(r);
-  $("#mailToday").textContent = `${r.sentToday} of ${r.perDay} sent today. What's left goes out by itself on the next days.`;
+  $("#mailToday").textContent = `${r.sentToday} of ${r.perDay} sent today. What's left goes out by itself on the next days.` +
+    (r.scriptLeft != null && r.scriptLeft < r.perDay - r.sentToday ? ` The platform's Gmail can send ${r.scriptLeft} more today.` : "");
   $("#mailRows").innerHTML = r.campaigns.length ? r.campaigns.map((c) => `<tr>
       <td data-label="Subject">${esc(c.subject)}${c.errors.length ? `<br><small class="muted">${c.errors.map(esc).join("<br>")}</small>` : ""}</td>
       <td data-label="Created">${esc(c.created)}${c.by ? `<br><small class="muted">${esc(c.by)}</small>` : ""}</td>
@@ -164,7 +165,7 @@ $("#mailForm").addEventListener("submit", async (e) => {
   if (!data.subject || !data.message.trim()) return showErr(MAIL_ERRORS.empty);
   if (!recipients.length) return showErr(MAIL_ERRORS.no_recipients);
   const n = recipients.length;
-  if (!confirm(`Send "${data.subject}" to ${n} ${n === 1 ? "person" : "people"} from ${mail.status.account.email}? Up to ${mail.perDay} go out a day.`)) return;
+  if (!confirm(`Send "${data.subject}" to ${n} ${n === 1 ? "person" : "people"} from ${mail.status.account ? mail.status.account.email : "the platform's Gmail"}? Up to ${mail.perDay} go out a day.`)) return;
   const btn = $("#mailSend");
   btn.disabled = true;
   btn.textContent = "Sending…";
