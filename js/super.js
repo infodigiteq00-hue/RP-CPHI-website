@@ -189,7 +189,7 @@ $("#readForm").addEventListener("submit", async (e) => {
   }
 });
 $("#manualBtn").addEventListener("click", () => {
-  startEdit({ id: "", name: "", website: "", status: "Draft", seats: 1, mailPerDay: 50,
+  startEdit({ id: "", name: "", website: "", status: "Draft", seats: 1,
     brand: { logo: "", primary: "#1f3a5f", accent: "#2e7d32", highlight: "", font: window.Brand.DEFAULT_FONT, heroIdea: "" },
     profile: { shortName: "", tagline: "", headline: "", highlight: "", about: "", industry: "", products: [],
       signature: { team: "", tagline: "", phone: "", email: "", website: "" } },
@@ -265,8 +265,6 @@ function renderEdit() {
               <select id="f_status" data-k="status">${[["Draft", "Draft: being set up (a preview only)"], ["Active", "Live: bookings and login open"], ["Paused", "Paused: page closed, login off"]]
                 .map(([v, l]) => `<option value="${v}"${d.status === v ? " selected" : ""}>${l}</option>`).join("")}</select></div>
             ${fld("Expo seats", "seats", { type: "number", attrs: ' min="0" max="100" step="1"', hint: "How many expos it can run at once. Archived expos don't use a seat." })}
-            ${fld("Mails a day", "mailPerDay", { type: "number", attrs: ' min="1" max="2000" step="1"',
-              hint: `From its own Gmail, in its dashboard's Mailer. ${d.gmail ? `Connected: ${esc(d.gmail)}.` : "No Gmail connected yet."} A free Gmail account allows about 500 a day.` })}
           </div>
         </section>
 
@@ -417,7 +415,7 @@ function onEdit(e) {
   if (!t.dataset.k) return;
   let v = t.value;
   if (t.dataset.k === "id") v = v.toLowerCase().replace(/[^a-z0-9-]/g, "-");
-  if (t.dataset.k === "seats" || t.dataset.k === "mailPerDay") v = v === "" ? "" : Number(v);
+  if (t.dataset.k === "seats") v = v === "" ? "" : Number(v);
   if (t.classList.contains("hex") && v && !/^#[0-9a-f]{6}$/i.test(v)) return; // half-typed colour: wait
   set(state.draft, t.dataset.k, v);
   if (/^profile\.(headline|highlight)$/.test(t.dataset.k) && $("#hlHint")) $("#hlHint").innerHTML = highlightHint(state.draft.profile.headline, state.draft.profile.highlight);

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="css/style.css?v=20261027-11">
-  <link rel="stylesheet" href="css/admin.css?v=20261030-4">
+  <link rel="stylesheet" href="css/admin.css?v=20261031-4">
   <script>
     // A company's dashboard (?c=…) starts as RP Industries' page: hide RP's logo, name, title and tab icon
     // until the company's own arrive. On a repeat visit its colours, title and icon come straight from this device.
@@ -165,52 +165,59 @@
       <!-- expo settings: drawn by js/expos.js -->
       <div id="settingsView" hidden></div>
 
-      <!-- the mailer: emails to a list, from the company's own Gmail (js/mailer.js) -->
+      <!-- the mailer: a mail and a list of people, sent one by one from the sender's own mailbox (js/mailer.js) -->
       <div id="mailerView" hidden>
         <section class="set mailer">
           <h2>Your Gmail</h2>
           <div id="mConn"><p class="muted">Loading…</p></div>
         </section>
-        <form class="set mailer" id="mailForm" novalidate>
-          <h2>New mail</h2>
-          <p class="muted" id="mailToday"></p>
-          <div class="field"><label for="mStart">Start from</label><select id="mStart"></select>
-            <p class="hint">An expo's invite email fills in the subject and message. You can still change them.</p></div>
-          <div class="set__grid">
-            <div class="field"><label for="mFrom">From name</label><input id="mFrom">
-              <p class="hint">Shown as the sender, with your Gmail address.</p></div>
-            <div class="field"><label for="mReply">Replies go to</label><input id="mReply" type="email" placeholder="Your Gmail">
-              <p class="hint">Leave empty to get replies in the Gmail you connected.</p></div>
+
+        <div id="mCompose">
+          <form class="set mailer" id="mailForm" novalidate>
+            <h2>1. The mail</h2>
+            <div class="field"><label for="mStart">Start from</label><select id="mStart"></select>
+              <p class="hint">An expo's invite keeps its layout, with this expo's details and images.</p></div>
+            <div class="field"><label for="mSubject">Subject</label><input id="mSubject"></div>
+            <div class="field"><label for="mMessage">Message</label><textarea id="mMessage" rows="6" spellcheck="false"></textarea>
+              <p class="hint">Plain text or HTML. These fill in for each person: <b>{first_name}</b> <b>{last_name}</b> <b>{email}</b> <b>{company_name}</b></p></div>
+            <div class="field" id="mPreviewWrap" hidden><label>How it looks</label>
+              <p class="mail-subject" id="mPreviewSubject"></p>
+              <iframe class="mail-preview" id="mPreview" title="Preview of the mail" sandbox></iframe></div>
+
+            <h2 class="mailer__step">2. Who it goes to</h2>
+            <p class="hint"><button class="link" type="button" id="mTemplate">Download the template</button> (First name, Last name, Email ID, Company name), fill it in, save it as CSV and upload it.</p>
+            <div class="field"><label class="btn btn--outline btn--sm mail-upload" for="mFile">Upload the list</label><input id="mFile" type="file" accept=".csv,.txt" hidden>
+              <textarea id="mList" rows="5" placeholder="Or paste it here: First name, Last name, Email ID, Company name" aria-label="The list" spellcheck="false"></textarea></div>
+            <p class="muted" id="mCount"></p>
+            <p class="err" id="mailErr" hidden></p>
+            <button class="btn" type="submit" id="mailReady">Get the emails ready</button>
+          </form>
+          <h2 class="mailer__h">Your lists</h2>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Subject</th><th>Created</th><th>Sent</th><th></th></tr></thead>
+              <tbody id="mLists"></tbody>
+            </table>
           </div>
-          <div class="field"><label for="mSubject">Subject</label><input id="mSubject"></div>
-          <div class="field"><label for="mMessage">Message</label><textarea id="mMessage" rows="10"></textarea>
-            <p class="hint">Plain text or HTML. <b>{name}</b> becomes each person's name.</p></div>
-          <div class="field"><label for="mList">Send to</label><textarea id="mList" rows="6" placeholder="asha@example.com, Asha Rao&#10;john@example.com, John Lee"></textarea>
-            <p class="hint">One person per line: email, then name. Or <label class="link" for="mFile">upload a CSV</label><input id="mFile" type="file" accept=".csv,.txt" hidden>.</p></div>
-          <p class="muted" id="mCount"></p>
-          <p class="err" id="mailErr" hidden></p>
-          <div class="mailer__send">
-            <button class="btn" type="submit" id="mailSend">Send</button>
-            <button class="btn btn--outline" type="button" id="byHandBtn">Send one by one from Gmail</button>
+        </div>
+
+        <div id="mReady" hidden>
+          <button class="link back" type="button" id="mBack">&larr; Mailer</button>
+          <h2 class="mailer__h" id="mReadyTitle"></h2>
+          <p class="muted" id="mReadyLine"></p>
+          <p class="mail-box" id="mBoxWrap"><label for="mBox">Open in</label>
+            <select id="mBox">
+              <option value="gmail">Gmail</option>
+              <option value="outlook">Outlook (work or Microsoft 365)</option>
+              <option value="outlook-live">Outlook.com (personal)</option>
+              <option value="mailto">Default mail app</option>
+            </select></p>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Person</th><th>Company</th><th>Email</th><th></th></tr></thead>
+              <tbody id="mPeople"></tbody>
+            </table>
           </div>
-          <p class="hint">"One by one": with your Gmail connected, each mail waits ready in your Gmail and the next opens after you press Send. Without connecting, Gmail's compose window opens for each person in the Gmail you're signed into.</p>
-        </form>
-        <section class="set mailer" id="byHand" hidden>
-          <h2>One by one in Gmail</h2>
-          <p id="bhLine"></p>
-          <p class="err" id="bhErr" hidden></p>
-          <div class="mailer__send">
-            <button class="btn" type="button" id="bhOpen" hidden>Open the Gmail tab again</button>
-            <button class="link" type="button" id="bhSkip">Skip</button>
-            <button class="link" type="button" id="bhClose">Stop</button>
-          </div>
-        </section>
-        <h2 class="mailer__h">Sent</h2>
-        <div class="table-wrap">
-          <table class="table">
-            <thead><tr><th>Subject</th><th>Created</th><th>Sent</th><th>Waiting</th><th>Failed</th><th></th></tr></thead>
-            <tbody id="mailRows"></tbody>
-          </table>
         </div>
       </div>
 
@@ -537,13 +544,13 @@
   <script src="js/config.js?v=20261027-11"></script>
   <script src="js/brand.js?v=20261027-11"></script>
   <script src="js/offline.js?v=20261027-11" defer></script>
-  <script src="js/admin.js?v=20261030-5" defer></script>
+  <script src="js/admin.js?v=20261031-3" defer></script>
   <script src="js/minutes.js?v=20261027-11" defer></script>
   <script src="js/followup.js?v=20261027-11" defer></script>
   <script src="js/expos.js?v=20261027-11" defer></script>
-  <script src="js/invite-mail.js?v=20261030-1" defer></script>
+  <script src="js/invite-mail.js?v=20261031-3" defer></script>
   <script src="js/invite.js?v=20261029-2" defer></script>
-  <script src="js/mailer.js?v=20261031-2" defer></script>
+  <script src="js/mailer.js?v=20261031-4" defer></script>
   <script src="js/ink.js?v=20261027-11" defer></script>
   <script src="js/meeting.js?v=20261027-11" defer></script>
   <script src="js/decide.js?v=20261027-11" defer></script>

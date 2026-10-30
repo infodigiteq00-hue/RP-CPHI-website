@@ -512,11 +512,19 @@ tr.is-cancelled td:not(:last-child) { opacity: .5; }
 
 /* the mailer (js/mailer.js) */
 .mailer { max-width: 760px; }
-.mailer .set__grid { align-items: start; }
+.mailer + .mailer, #mCompose, #mReady { margin-top: 16px; }
 .mailer .field, .mailer .field + .field { margin: 0 0 14px; }
 .mailer .field input, .mailer .field textarea, .mailer .field select { width: 100%; }
+.mailer .field textarea { font-family: inherit; }
 #mConn p { margin: 0 0 12px; }
-.mailer__h { margin: 32px 0 12px; font-size: 18px; color: var(--navy); }
-.mailer + .mailer { margin-top: 16px; }
-.mailer__send { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
-#bhLine { margin: 0 0 12px; font-weight: 600; }
+.mailer__step { margin-top: 28px; }
+.mailer__h { margin: 28px 0 12px; font-size: 18px; color: var(--navy); }
+.mail-subject { margin: 0 0 8px; font-weight: 600; color: var(--navy); }
+.mail-preview { display: block; width: 100%; height: 480px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.mail-upload { display: inline-flex; margin-bottom: 10px; cursor: pointer; }
+.mail-box { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; }
+.mail-box select { max-width: 300px; height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; font: inherit; }
+.mail-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.mail-ask p { margin: 0; flex-basis: 100%; }
+.mail-sent { color: var(--ok); font-weight: 600; }
+.mail-undo { margin-left: 10px; }

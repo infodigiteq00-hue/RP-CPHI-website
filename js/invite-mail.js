@@ -21,7 +21,8 @@ function inviteLink(e, c) {
   return `${location.origin}/${c.id}/${e.id}`;
 }
 
-function inviteParts(e, c) {
+// personal: the greeting and the invitation use {first_name} and {company_name}, for the mailer to fill in per person
+function inviteParts(e, c, personal) {
   const isRP = () => c.id === "rp";
   const who = c.profile.shortName || c.name;
   const sig = c.profile.signature || {};
@@ -29,7 +30,7 @@ function inviteParts(e, c) {
   const booth = [e.booth, e.hall].filter(Boolean).join(", ");
   const products = (e.products || []).length >= 1 && (e.products || []).length <= 8 ? e.products : [];
   return {
-    who, sig, booth, products,
+    who, sig, booth, products, personal,
     navy: colors["--navy"], accent: colors["--green"],
     logo: window.Brand.logoUrl(c),
     banner: e.emailBanner || e.banner || (isRP() ? `${location.origin}/assets/email-banner.jpg` : ""),
@@ -62,8 +63,8 @@ function inviteText(e, c) {
   ].join("\n");
 }
 
-function inviteHtml(e, c) {
-  const p = inviteParts(e, c);
+function inviteHtml(e, c, personal) {
+  const p = inviteParts(e, c, personal);
   const f = "font-family:Arial, Helvetica, sans-serif;";
   const row = (label, value, last) => value ? `<tr>
       <td class="label" width="80" valign="top" style="padding:${last ? "6px 0 14px 0" : "6px 0"}; ${f} font-size:14px; line-height:20px; color:#667085;">${label}</td>
@@ -122,8 +123,8 @@ function inviteHtml(e, c) {
             <td class="px" style="padding:36px 40px 8px 40px; ${f} color:#1a2233;">
               <h1 class="h1" style="margin:0 0 8px 0; font-size:28px; line-height:36px; font-weight:bold; color:${p.navy};">You're invited to <span style="color:${p.accent};">${esc(e.name)}</span></h1>
               ${p.claim ? `<p style="margin:0 0 24px 0; font-size:16px; line-height:24px; color:#667085;">${esc(p.claim)}</p>` : ""}
-              <p style="margin:0 0 16px 0; font-size:16px; line-height:25px;">Dear Business Associate,</p>
-              <p style="margin:0 0 12px 0; font-size:16px; line-height:25px;">${esc(p.who)} invites you to meet our team at ${esc(e.name)}.${p.about ? ` ${esc(p.about)}` : ""}${p.products.length ? " Let's discuss your requirements for:" : ""}</p>
+              <p style="margin:0 0 16px 0; font-size:16px; line-height:25px;">Dear ${p.personal ? "{first_name}" : "Business Associate"},</p>
+              <p style="margin:0 0 12px 0; font-size:16px; line-height:25px;">${esc(p.who)} ${p.personal ? "would love to invite {company_name}" : "invites you"} to meet our team at ${esc(e.name)}.${p.about ? ` ${esc(p.about)}` : ""}${p.products.length ? " Let's discuss your requirements for:" : ""}</p>
               ${p.products.length ? `<ul style="margin:0 0 12px 0; padding-left:22px; font-size:16px; line-height:25px;">${p.products.map((x) => `<li><strong>${esc(x)}</strong></li>`).join("")}</ul>` : ""}
             </td>
           </tr>
