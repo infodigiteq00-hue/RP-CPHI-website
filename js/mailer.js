@@ -183,7 +183,38 @@ $("#mailForm").addEventListener("submit", async (e) => {
 
 // ---------- one by one from Gmail: each person's mail is made a draft in their Gmail and opened there in one tab;
 // they press Send, and once the draft is gone (sent) the next one opens in the same tab. Nothing is sent for them.
-let hand = null; // { list, i, mail, win, draft, url, timer, busy, sent }
+// Without a connected Gmail (links): Gmail's compose window per person in whatever Gmail the browser is signed into;
+// plain text arrives filled in, a designed mail is copied for them to paste (Ctrl+V). They click Open in Gmail each time.
+let hand = null; // { list, i, mail, win, draft, url, timer, busy, sent, links }
+const isHtml = (t) => /<\/?(html|body|p|div|table|br|a|img)\b/i.test(t);
+
+function linkState() {
+  const p = hand.list[hand.i];
+  if (!p) return handEnd(`Done: all ${hand.list.length} opened in Gmail.`);
+  handMsg(`${hand.i + 1} of ${hand.list.length}: ${p.name ? `${p.name} <${p.email}>` : p.email}. Click Open in Gmail, ` +
+    (isHtml(hand.mail.message) ? "click into the message, press Ctrl+V (Cmd+V on a Mac), then Send." : "then press Send there."));
+  $("#bhOpen").textContent = "Open in Gmail";
+  $("#bhOpen").hidden = false;
+}
+
+function linkOpen() {
+  const p = hand.list[hand.i];
+  const fill = (t) => t.replace(/\{name\}/gi, p.name || "Sir/Madam");
+  const q = encodeURIComponent;
+  const m = hand.mail.message;
+  let body = `&body=${q(fill(m))}`;
+  if (isHtml(m)) {
+    // the mail's body with its design, for pasting into Gmail (it keeps inline styles and linked images)
+    const html = fill((/<body[^>]*>([\s\S]*)<\/body>/i.exec(m) || [, m])[1]);
+    const text = html.replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    navigator.clipboard.write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([text], { type: "text/plain" }) })])
+      .catch(() => alert("Couldn't copy the mail. Allow clipboard access for this page and try again."));
+    body = "";
+  }
+  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${q(p.email)}&su=${q(fill(hand.mail.subject))}${body}`, "_blank", "noopener");
+  hand.i++;
+  linkState();
+}
 
 const handMsg = (t) => { $("#bhLine").textContent = t; };
 const handErr = (t) => { $("#bhErr").textContent = t || ""; $("#bhErr").hidden = !t; };
@@ -216,6 +247,8 @@ async function handNext() {
 }
 
 function handTabState() {
+  if (hand && hand.links) return;
+  $("#bhOpen").textContent = "Open the Gmail tab again";
   $("#bhOpen").hidden = !hand || !hand.draft || (hand.win && !hand.win.closed);
 }
 
@@ -235,7 +268,7 @@ async function handCheck() {
 }
 
 function handEnd(text) {
-  clearInterval(hand.timer);
+  if (hand.timer) clearInterval(hand.timer);
   if (hand.win && !hand.win.closed) hand.win.close();
   hand = null;
   handMsg(text);
@@ -254,30 +287,40 @@ $("#byHandBtn").addEventListener("click", () => {
   const fail = (m) => { err.textContent = m; err.hidden = false; };
   if (!subject || !message) return fail(MAIL_ERRORS.empty);
   if (!list.length) return fail(MAIL_ERRORS.no_recipients);
-  if (!acc || acc.error) return fail("Connect your Gmail first (Connect with Google, above).");
-  if (acc.drafts === false) return fail("One by one needs Gmail's permission to make drafts. Click Disconnect, then Connect with Google again and allow it.");
   if (hand) return;
+  const mailParts = { subject, message, fromName: $("#mFrom").value.trim(), replyTo: $("#mReply").value.trim() };
+  const show = () => {
+    $("#byHand").hidden = false;
+    $("#bhSkip").hidden = false;
+    $("#bhClose").textContent = "Stop";
+    handErr("");
+    $("#byHand").scrollIntoView({ block: "nearest" });
+  };
+  // no Gmail connected (or no drafts allowed): Gmail's compose window, one by one
+  if (!acc || acc.error || acc.drafts === false) {
+    hand = { list, i: 0, sent: 0, links: true, mail: mailParts };
+    show();
+    return linkState();
+  }
   // the Gmail tab is opened now, while it's a click (browsers block it later); the drafts go into it one by one
   const win = window.open("about:blank", "expo_gmail");
   if (!win) return fail("Your browser blocked the Gmail tab. Allow pop-ups for this site and try again.");
   try { win.opener = null; } catch {}
-  hand = { list, i: 0, sent: 0, win, draft: null, busy: false,
-    mail: { subject, message, fromName: $("#mFrom").value.trim(), replyTo: $("#mReply").value.trim() } };
+  hand = { list, i: 0, sent: 0, win, draft: null, busy: false, mail: mailParts };
   hand.timer = setInterval(handCheck, 4000);
-  $("#byHand").hidden = false;
-  $("#bhSkip").hidden = false;
-  $("#bhClose").textContent = "Stop";
-  $("#byHand").scrollIntoView({ block: "nearest" });
+  show();
   handNext();
 });
 
 $("#bhOpen").addEventListener("click", () => {
+  if (hand && hand.links) return linkOpen();
   if (!hand || !hand.url) return;
   hand.win = window.open(hand.url, "expo_gmail");
   handTabState();
 });
 $("#bhSkip").addEventListener("click", async () => {
   if (!hand || hand.busy) return;
+  if (hand.links) { hand.i++; return linkState(); }
   hand.busy = true;
   if (hand.draft) api("dropDraft", { token: mailToken(), draftId: hand.draft }).catch(() => {});
   hand.i++;
@@ -287,8 +330,7 @@ $("#bhSkip").addEventListener("click", async () => {
 $("#bhClose").addEventListener("click", () => {
   if (!hand) { $("#byHand").hidden = true; return; }
   if (hand.draft) api("dropDraft", { token: mailToken(), draftId: hand.draft }).catch(() => {});
-  const done = hand.sent;
-  handEnd(`Stopped. ${done} sent from your Gmail.`);
+  handEnd(hand.links ? `Stopped after ${hand.i} of ${hand.list.length}.` : `Stopped. ${hand.sent} sent from your Gmail.`);
 });
 
 $("#mailRows").addEventListener("click", async (e) => {
