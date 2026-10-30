@@ -202,7 +202,8 @@ async function handNext() {
   if (!hand) return; // stopped meanwhile
   if (!r.ok) {
     handErr({ no_draft_permission: "Gmail hasn't allowed drafts yet. Click Connect with Google again and allow it.",
-      reconnect: "Google stopped the permission. Connect with Google again.", invalid_email: `${p.email} isn't a valid address. Skip it.` }[r.error]
+      reconnect: "Google stopped the permission. Connect with Google again.", invalid_email: `${p.email} isn't a valid address. Skip it.`,
+      invalid_slot: "The Apps Script is an older version. Paste the latest Code.gs and deploy a New version, then try again." }[r.error]
       || `Couldn't make the mail for ${p.email}${r.detail ? `: ${r.detail}` : ""}. Skip it or try again later.`);
     return;
   }
@@ -254,7 +255,7 @@ $("#byHandBtn").addEventListener("click", () => {
   if (!subject || !message) return fail(MAIL_ERRORS.empty);
   if (!list.length) return fail(MAIL_ERRORS.no_recipients);
   if (!acc || acc.error) return fail("Connect your Gmail first (Connect with Google, above).");
-  if (!acc.drafts) return fail("One by one needs Gmail's permission to make drafts. Click Disconnect, then Connect with Google again and allow it.");
+  if (acc.drafts === false) return fail("One by one needs Gmail's permission to make drafts. Click Disconnect, then Connect with Google again and allow it.");
   if (hand) return;
   // the Gmail tab is opened now, while it's a click (browsers block it later); the drafts go into it one by one
   const win = window.open("about:blank", "expo_gmail");
