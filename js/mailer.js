@@ -182,6 +182,7 @@ $("#mailForm").addEventListener("submit", async (e) => {
 });
 
 // ---------- one by one in Gmail: Gmail's compose window, filled in, for each person; they press Send ----------
+// A designed (HTML) email can't go in Gmail's compose link: it's copied, and they paste it into the message.
 let hand = null; // { list, i, subject, body }
 const isHtml = (t) => /<\/?(html|body|p|div|table|br|a|img)\b/i.test(t);
 
@@ -189,6 +190,7 @@ function renderHand() {
   const p = hand.list[hand.i];
   $("#bhLine").textContent = p ? `${hand.i + 1} of ${hand.list.length}: ${p.name ? `${p.name} <${p.email}>` : p.email}`
     : `Done: all ${hand.list.length} opened in Gmail.`;
+  $("#bhPaste").hidden = !p || !hand.html;
   $("#bhOpen").hidden = $("#bhSkip").hidden = !p;
   $("#bhClose").textContent = p ? "Stop" : "Close";
 }
@@ -200,10 +202,8 @@ $("#byHandBtn").addEventListener("click", () => {
   const subject = $("#mSubject").value.trim();
   const body = $("#mMessage").value.trim();
   if (!subject || !body) { err.textContent = MAIL_ERRORS.empty; err.hidden = false; return; }
-  // Gmail's compose link takes plain text only
-  if (isHtml(body)) { err.textContent = "Gmail's compose window takes plain text only. In Start from, pick \"Invite, plain text\", or write the message without HTML."; err.hidden = false; return; }
   if (!list.length) { err.textContent = MAIL_ERRORS.no_recipients; err.hidden = false; return; }
-  hand = { list, i: 0, subject, body };
+  hand = { list, i: 0, subject, body, html: isHtml(body) };
   $("#byHand").hidden = false;
   renderHand();
   $("#byHand").scrollIntoView({ block: "nearest" });
@@ -214,7 +214,16 @@ $("#bhOpen").addEventListener("click", () => {
   const fill = (t) => t.replace(/\{name\}/gi, p.name || "Sir/Madam");
   const q = encodeURIComponent;
   const acc = mail.status && mail.status.account ? `&authuser=${q(mail.status.account.email)}` : "";
-  window.open(`https://mail.google.com/mail/?view=cm&fs=1${acc}&to=${q(p.email)}&su=${q(fill(hand.subject))}&body=${q(fill(hand.body))}`, "_blank", "noopener");
+  let body = `&body=${q(fill(hand.body))}`;
+  if (hand.html) {
+    // the email's body, ready to paste into Gmail with its design (Gmail keeps inline styles and linked images)
+    const html = fill((/<body[^>]*>([\s\S]*)<\/body>/i.exec(hand.body) || [, hand.body])[1]);
+    const text = html.replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    navigator.clipboard.write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([text], { type: "text/plain" }) })])
+      .catch(() => alert("Couldn't copy the email. Allow clipboard access for this page and try again."));
+    body = "";
+  }
+  window.open(`https://mail.google.com/mail/?view=cm&fs=1${acc}&to=${q(p.email)}&su=${q(fill(hand.subject))}${body}`, "_blank", "noopener");
   hand.i++;
   renderHand();
 });
