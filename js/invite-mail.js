@@ -97,9 +97,6 @@ function inviteHtml(e, c) {
   </style>
 </head>
 <body style="margin:0; padding:0; background-color:#f4f6f9;">
-  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#f4f6f9; opacity:0;">
-    Book a ${e.slotMinutes}-minute meeting with our team${p.dates ? `, ${esc(p.dates)}` : ""}.&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;
-  </div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f6f9;">
     <tr>
       <td align="center" style="padding:24px 12px;">

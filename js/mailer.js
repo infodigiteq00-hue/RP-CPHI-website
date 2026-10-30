@@ -63,7 +63,11 @@ function renderMail(r) {
 // the expos' invite emails, and the company name as the sender
 function fillStart() {
   const expos = (state.expos || []).filter((e) => e.status === "Active");
-  $("#mStart").innerHTML = `<option value="">Your own email</option>${expos.map((e) => `<option value="${esc(e.id)}">Invite: ${esc(e.name)}</option>`).join("")}`;
+  const keep = $("#mStart").value;
+  // the plain one lands in the inbox more often: no images, one link
+  $("#mStart").innerHTML = `<option value="">Your own email</option>${expos.map((e) => `<option value="text|${esc(e.id)}">Invite, plain text: ${esc(e.name)}</option>
+    <option value="html|${esc(e.id)}">Invite, designed: ${esc(e.name)}</option>`).join("")}`;
+  $("#mStart").value = keep;
   const c = state.company;
   if (c && !$("#mFrom").value) $("#mFrom").value = c.profile.shortName || c.name;
 }
@@ -132,10 +136,13 @@ $("#mConn").addEventListener("click", async (e) => {
 });
 
 $("#mStart").addEventListener("change", () => {
-  const e = (state.expos || []).find((x) => x.id === $("#mStart").value);
+  const [kind, id] = $("#mStart").value.split("|");
+  const e = (state.expos || []).find((x) => x.id === id);
   if (!e) return;
   $("#mSubject").value = inviteParts(e, state.company).subject;
-  $("#mMessage").value = inviteHtml(e, state.company);
+  // the plain-text invite starts with its own "Subject:" line
+  const body = kind === "html" ? inviteHtml(e, state.company) : inviteText(e, state.company).split("\n").slice(2).join("\n");
+  $("#mMessage").value = body.replace("Dear Business Associate,", "Dear {name},"); // a personal greeting reads less like bulk mail
 });
 $("#mList").addEventListener("input", countLine);
 $("#mFile").addEventListener("change", async (e) => {
@@ -173,6 +180,46 @@ $("#mailForm").addEventListener("submit", async (e) => {
     if (mail.status) renderConn(mail.status);
   }
 });
+
+// ---------- one by one in Gmail: Gmail's compose window, filled in, for each person; they press Send ----------
+let hand = null; // { list, i, subject, body }
+const isHtml = (t) => /<\/?(html|body|p|div|table|br|a|img)\b/i.test(t);
+
+function renderHand() {
+  const p = hand.list[hand.i];
+  $("#bhLine").textContent = p ? `${hand.i + 1} of ${hand.list.length}: ${p.name ? `${p.name} <${p.email}>` : p.email}`
+    : `Done: all ${hand.list.length} opened in Gmail.`;
+  $("#bhOpen").hidden = $("#bhSkip").hidden = !p;
+  $("#bhClose").textContent = p ? "Stop" : "Close";
+}
+
+$("#byHandBtn").addEventListener("click", () => {
+  const err = $("#mailErr");
+  err.hidden = true;
+  const list = parseList($("#mList").value).filter((p, i, a) => a.findIndex((x) => x.email.toLowerCase() === p.email.toLowerCase()) === i);
+  const subject = $("#mSubject").value.trim();
+  const body = $("#mMessage").value.trim();
+  if (!subject || !body) { err.textContent = MAIL_ERRORS.empty; err.hidden = false; return; }
+  // Gmail's compose link takes plain text only
+  if (isHtml(body)) { err.textContent = "Gmail's compose window takes plain text only. In Start from, pick \"Invite, plain text\", or write the message without HTML."; err.hidden = false; return; }
+  if (!list.length) { err.textContent = MAIL_ERRORS.no_recipients; err.hidden = false; return; }
+  hand = { list, i: 0, subject, body };
+  $("#byHand").hidden = false;
+  renderHand();
+  $("#byHand").scrollIntoView({ block: "nearest" });
+});
+
+$("#bhOpen").addEventListener("click", () => {
+  const p = hand.list[hand.i];
+  const fill = (t) => t.replace(/\{name\}/gi, p.name || "Sir/Madam");
+  const q = encodeURIComponent;
+  const acc = mail.status && mail.status.account ? `&authuser=${q(mail.status.account.email)}` : "";
+  window.open(`https://mail.google.com/mail/?view=cm&fs=1${acc}&to=${q(p.email)}&su=${q(fill(hand.subject))}&body=${q(fill(hand.body))}`, "_blank", "noopener");
+  hand.i++;
+  renderHand();
+});
+$("#bhSkip").addEventListener("click", () => { hand.i++; renderHand(); });
+$("#bhClose").addEventListener("click", () => { hand = null; $("#byHand").hidden = true; });
 
 $("#mailRows").addEventListener("click", async (e) => {
   const b = e.target.closest("[data-stop]");

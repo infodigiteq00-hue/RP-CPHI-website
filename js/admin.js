@@ -370,7 +370,7 @@ $("#viewTabs").addEventListener("click", (e) => {
 });
 
 function render() {
-  if (state.view === "mailer") return; // js/mailer.js keeps its own page
+  if (state.view === "mailer") return mail.status ? fillStart() : openMailer(); // js/mailer.js keeps its own page; the data may have just loaded
   if (state.view === "slots") return renderAvail();
   if (state.view === "scheduled") return renderScheduled();
   if (state.view === "settings") return renderSettings(); // js/expos.js

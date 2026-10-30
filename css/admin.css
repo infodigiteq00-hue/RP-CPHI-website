@@ -518,3 +518,5 @@ tr.is-cancelled td:not(:last-child) { opacity: .5; }
 #mConn p { margin: 0 0 12px; }
 .mailer__h { margin: 32px 0 12px; font-size: 18px; color: var(--navy); }
 .mailer + .mailer { margin-top: 16px; }
+.mailer__send { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+#bhLine { margin: 0 0 12px; font-weight: 600; }

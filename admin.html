@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="css/style.css?v=20261027-11">
-  <link rel="stylesheet" href="css/admin.css?v=20261029-4">
+  <link rel="stylesheet" href="css/admin.css?v=20261030-4">
   <script>
     // A company's dashboard (?c=…) starts as RP Industries' page: hide RP's logo, name, title and tab icon
     // until the company's own arrive. On a repeat visit its colours, title and icon come straight from this device.
@@ -189,8 +189,21 @@
             <p class="hint">One person per line: email, then name. Or <label class="link" for="mFile">upload a CSV</label><input id="mFile" type="file" accept=".csv,.txt" hidden>.</p></div>
           <p class="muted" id="mCount"></p>
           <p class="err" id="mailErr" hidden></p>
-          <button class="btn" type="submit" id="mailSend">Send</button>
+          <div class="mailer__send">
+            <button class="btn" type="submit" id="mailSend">Send</button>
+            <button class="btn btn--outline" type="button" id="byHandBtn">Send one by one in Gmail</button>
+          </div>
+          <p class="hint">"One by one" opens Gmail's own compose window for each person, filled in as plain text. You press Send in Gmail.</p>
         </form>
+        <section class="set mailer" id="byHand" hidden>
+          <h2>One by one in Gmail</h2>
+          <p id="bhLine"></p>
+          <div class="mailer__send">
+            <button class="btn" type="button" id="bhOpen">Open in Gmail</button>
+            <button class="link" type="button" id="bhSkip">Skip</button>
+            <button class="link" type="button" id="bhClose">Stop</button>
+          </div>
+        </section>
         <h2 class="mailer__h">Sent</h2>
         <div class="table-wrap">
           <table class="table">
@@ -523,13 +536,13 @@
   <script src="js/config.js?v=20261027-11"></script>
   <script src="js/brand.js?v=20261027-11"></script>
   <script src="js/offline.js?v=20261027-11" defer></script>
-  <script src="js/admin.js?v=20261029-4" defer></script>
+  <script src="js/admin.js?v=20261030-5" defer></script>
   <script src="js/minutes.js?v=20261027-11" defer></script>
   <script src="js/followup.js?v=20261027-11" defer></script>
   <script src="js/expos.js?v=20261027-11" defer></script>
-  <script src="js/invite-mail.js?v=20261029-2" defer></script>
+  <script src="js/invite-mail.js?v=20261030-1" defer></script>
   <script src="js/invite.js?v=20261029-2" defer></script>
-  <script src="js/mailer.js?v=20261029-4" defer></script>
+  <script src="js/mailer.js?v=20261030-5" defer></script>
   <script src="js/ink.js?v=20261027-11" defer></script>
   <script src="js/meeting.js?v=20261027-11" defer></script>
   <script src="js/decide.js?v=20261027-11" defer></script>
