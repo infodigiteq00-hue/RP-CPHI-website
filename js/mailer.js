@@ -62,21 +62,28 @@ function parseList(text) {
   const head = rows[0].map((h) => h.toLowerCase());
   const hasHead = !rows[0].some((c) => c.includes("@"));
   const find = (re) => head.findIndex((h) => re.test(h));
-  const col = hasHead ? { first: find(/first|^name$|full/), last: find(/last|sur/), email: find(/mail/), company: find(/company|firm|organi[sz]ation/) } : { first: 0, last: 1, email: 2, company: 3 };
+  const isCc = (h) => /^cc\b|\bcc\b|copy|colleague/.test(h);
+  const col = hasHead ? { first: find(/first|^name$|full/), last: find(/last|sur/), email: head.findIndex((h) => /mail/.test(h) && !isCc(h)),
+    company: find(/company|firm|organi[sz]ation/), cc: head.findIndex(isCc) } : { first: 0, last: 1, email: 2, company: 3, cc: 4 };
   const seen = new Set();
   let skipped = 0;
+  let badCc = 0;
   const people = [];
   (hasHead ? rows.slice(1) : rows).forEach((r) => {
     const email = (r[col.email] || r.find((c) => c.includes("@")) || "").toLowerCase();
     if (!EMAIL_OK.test(email) || seen.has(email)) { skipped++; return; }
     seen.add(email);
-    people.push({ email, firstName: r[col.first] || "", lastName: r[col.last] || "", company: r[col.company] || "" });
+    // their own colleagues, copied on their mail: "a@x.com; b@x.com" in one cell
+    const cc = String(r[col.cc] || "").split(/[\s,;]+/).filter(Boolean).map((e) => e.toLowerCase());
+    if (cc.some((e) => !EMAIL_OK.test(e))) badCc++;
+    people.push({ email, firstName: r[col.first] || "", lastName: r[col.last] || "", company: r[col.company] || "",
+      cc: [...new Set(cc.filter((e) => EMAIL_OK.test(e) && e !== email))].join(", ") });
   });
-  return { people, skipped };
+  return { people, skipped, badCc };
 }
 
 function countLine() {
-  const { people, skipped } = parseList($("#mList").value);
+  const { people, skipped, badCc } = parseList($("#mList").value);
   const noFirst = people.filter((p) => !p.firstName).length;
   const noCompany = people.filter((p) => !p.company).length;
   $("#mCount").textContent = !people.length && !skipped ? "" : [
@@ -84,6 +91,7 @@ function countLine() {
     skipped && `${skipped} left out (bad or repeated email)`,
     noFirst && `${noFirst} without a first name will see "Business Associate"`,
     noCompany && `${noCompany} without a company will see "your firm"`,
+    badCc && `${badCc} with a CC address that doesn't look right (left out)`,
   ].filter(Boolean).join(" · ");
   renderPreview();
 }
@@ -211,7 +219,7 @@ $("#mMessage").addEventListener("input", renderPreview);
 $("#mList").addEventListener("input", countLine);
 $("#mTemplate").addEventListener("click", () => {
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob(["First name,Last name,Email ID,Company name\nAsha,Rao,asha@example.com,Acme Pharma\n"], { type: "text/csv" }));
+  a.href = URL.createObjectURL(new Blob(["First name,Last name,Email ID,Company name,CC (their colleagues)\nAsha,Rao,asha@example.com,Acme Pharma,ravi@acmepharma.com; meena@acmepharma.com\n"], { type: "text/csv" }));
   a.download = "email-list-template.csv";
   a.click();
   URL.revokeObjectURL(a.href);
@@ -290,7 +298,7 @@ function renderReady() {
     return `<tr>
       <td data-label="Person">${esc([p.firstName, p.lastName].filter(Boolean).join(" ") || "—")}</td>
       <td data-label="Company">${esc(p.company || "—")}</td>
-      <td data-label="Email">${esc(p.email)}</td>
+      <td data-label="Email">${esc(p.email)}${p.cc ? `<br><small class="muted">CC ${esc(p.cc)}</small>` : ""}</td>
       <td>${action}</td>
     </tr>`;
   }).join("");
@@ -313,6 +321,9 @@ function copyMail(html, text) {
   navigator.clipboard.write([new ClipboardItem(items)]).catch(() => alert("Couldn't copy the mail. Allow clipboard access for this page and try again."));
 }
 
+// your team (on the list) and their colleagues (on their row), once each
+const ccFor = (p) => [...new Set([mail.list.cc, p.cc].join(",").split(/[\s,;]+/).filter(Boolean))].join(", ");
+
 async function sendOne(p) {
   const html = isHtml(mail.list.message);
   const subject = fillMail(mail.list.subject, p, false);
@@ -331,7 +342,7 @@ async function sendOne(p) {
     renderReady();
     let r;
     try {
-      r = await api("makeDraft", { token: mailToken(), to: p.email, cc: mail.list.cc, subject, message });
+      r = await api("makeDraft", { token: mailToken(), to: p.email, cc: ccFor(p), subject, message });
     } catch (ex) {
       r = { ok: false, error: ex.message };
     }
@@ -344,12 +355,12 @@ async function sendOne(p) {
     if (r.error === "reconnect" || r.error === "no_draft_permission") openMailer();
     mail.asking.note = `Couldn't make the draft, so it opens the manual way. ${fits ? "Press Send." : PASTE}`;
     renderReady();
-    if (win) win.location.href = composeUrl("gmail", p.email, subject, fits ? text : "", mail.list.cc);
+    if (win) win.location.href = composeUrl("gmail", p.email, subject, fits ? text : "", ccFor(p));
     return;
   }
   mail.asking = { email: p.email, note: fits ? "Press Send in your mailbox." : PASTE };
   renderReady();
-  const url = composeUrl(box, p.email, subject, fits ? text : "", mail.list.cc);
+  const url = composeUrl(box, p.email, subject, fits ? text : "", ccFor(p));
   if (box === "mailto") window.location.href = url; else window.open(url, "_blank", "noopener");
 }
 
