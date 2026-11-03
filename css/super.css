@@ -40,6 +40,9 @@
 .logo-opt { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; text-align: center; }
 .logo-opt img { width: 100%; height: 56px; object-fit: contain; }
 .logo-opt small { color: var(--muted); font-size: 12px; }
+.cert-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cert-add label.btn { cursor: pointer; }
+.cert-add input[type="url"] { flex: 1 1 220px; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
 .logo-opt[aria-pressed="true"] { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy); }
 
 /* preview: a small booking page and dashboard header in the company's branding (variables set on .pv) */

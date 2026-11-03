@@ -277,9 +277,18 @@ function renderEdit() {
 
         <section class="set">
           <h2>Certificates</h2>
-          <p class="muted">Shown beside the logo in the invite email. Click one to add or remove it.</p>
+          <p class="muted">Shown beside the logo in the invite email (up to 8). Click one to add or remove it.</p>
           ${certs.length ? `<div class="logo-pick">${certs.map((u) => `<button type="button" class="logo-opt" data-cert="${esc(u)}" aria-pressed="${chosen.includes(u)}">
-            <img src="${esc(u)}" alt="" loading="lazy"></button>`).join("")}</div>` : `<p class="muted">None found on the website.</p>`}
+            <img src="${esc(u)}" alt="" loading="lazy"></button>`).join("")}</div>` : `<p class="muted">None found on the website. Add them below.</p>`}
+          <div class="cert-add">
+            <label class="btn btn--outline btn--sm" for="certFile">Upload a certificate</label>
+            <input id="certFile" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
+            <span class="muted">or</span>
+            <input id="certLink" type="url" placeholder="Paste an image link: https://…/iso-9001.png" aria-label="Certificate image link">
+            <button class="btn btn--outline btn--sm" type="button" id="certAddLink">Add</button>
+          </div>
+          <p class="hint">PNG with a transparent background looks best.</p>
+          <p class="err" id="certErr" hidden></p>
         </section>
 
         <section class="set">
@@ -410,6 +419,55 @@ function renderPreview() {
 
 $("#editView").addEventListener("input", onEdit);
 $("#editView").addEventListener("change", onEdit);
+$("#editView").addEventListener("change", (e) => { if (e.target.id === "certFile") uploadCerts([...e.target.files]); });
+
+// ---------- certificates the website doesn't show ----------
+function certErr(m) { const err = $("#certErr"); err.textContent = m; err.hidden = !m; }
+// an added certificate is picked straight away, and stays in the list if it's unpicked
+function addCert(u) {
+  const list = state.draft.brand.certs || [];
+  if (!list.includes(u) && list.length >= 8) return certErr("Up to 8 certificates. Unpick one first.");
+  state.candidates = state.candidates || {};
+  state.candidates.certs = [u, ...(state.candidates.certs || []).filter((x) => x !== u)];
+  if (!list.includes(u)) state.draft.brand.certs = [...list, u];
+  renderEdit();
+}
+async function uploadCerts(files) {
+  certErr("");
+  const lbl = $('label[for="certFile"]');
+  for (const f of files) {
+    if (!/^image\/(png|jpeg|webp)$/.test(f.type)) { certErr("Use a PNG, JPG or WebP image."); continue; }
+    lbl.textContent = "Uploading…";
+    try {
+      const r = await api("superUploadCert", { token: token(), company: state.draft.id, mime: "image/png", data: await shrinkPng(f, 400) });
+      if (!r.ok) throw new Error(r.error);
+      addCert(r.url);
+    } catch (ex) {
+      if (ex.message === "auth") return;
+      certErr({ image_too_large: "That image is too large.", invalid_image: "That file isn't a usable image.",
+        invalid_slot: "The Apps Script is an older version. Update Code.gs to upload certificates." }[ex.message] || "Couldn't upload it. Try again.");
+    }
+  }
+  if ($('label[for="certFile"]')) $('label[for="certFile"]').textContent = "Upload a certificate";
+}
+// a PNG at most `maxW` wide (keeps the transparent background), as base64
+function shrinkPng(file, maxW) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxW / img.naturalWidth);
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.naturalWidth * scale);
+      c.height = Math.round(img.naturalHeight * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/png").split(",")[1]);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("invalid_image")); };
+    img.src = url;
+  });
+}
 function onEdit(e) {
   const t = e.target;
   if (!t.dataset.k) return;
@@ -442,6 +500,11 @@ $("#editView").addEventListener("click", async (e) => {
     const list = state.draft.brand.certs || [];
     state.draft.brand.certs = list.includes(ct.dataset.cert) ? list.filter((u) => u !== ct.dataset.cert) : [...list, ct.dataset.cert].slice(0, 8);
     return renderEdit();
+  }
+  if (e.target.id === "certAddLink") {
+    const u = $("#certLink").value.trim();
+    if (!/^https:\/\/\S+$/i.test(u)) return certErr("Paste an image link that starts with https://");
+    return addCert(u);
   }
   if (e.target.id === "genPw") {
     const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
