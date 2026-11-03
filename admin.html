@@ -189,7 +189,8 @@
             <h2 class="mailer__step">2. Who it goes to</h2>
             <p class="hint"><button class="link" type="button" id="mTemplate">Download the template</button> (First name, Last name, Email ID, Company name, CC), fill it in, save it as CSV and upload it. CC is optional: that person's colleagues, separated with ";".</p>
             <div class="field"><label class="btn btn--outline btn--sm mail-upload" for="mFile">Upload the list</label><input id="mFile" type="file" accept=".csv,.txt" hidden>
-              <textarea id="mList" rows="5" placeholder="Or paste it here: First name, Last name, Email ID, Company name, CC" aria-label="The list" spellcheck="false"></textarea></div>
+              <label for="mList">Or paste it here: First name, Last name, Email ID, Company name, CC</label>
+              <textarea id="mList" rows="5" placeholder="Or paste it here: First name, Last name, Email ID, Company name, CC" spellcheck="false"></textarea></div>
             <p class="muted" id="mCount"></p>
             <p class="err" id="mailErr" hidden></p>
             <button class="btn" type="submit" id="mailReady">Get the emails ready</button>
