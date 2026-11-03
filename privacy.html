@@ -19,20 +19,21 @@
 <body>
   <main class="policy">
     <h1>Privacy policy</h1>
-    <p class="muted">Expo Meetings · last updated 30 October 2026</p>
+    <p class="muted">Expo Meetings · last updated 3 November 2026</p>
 
     <p>Expo Meetings is a meeting-booking and follow-up service for companies exhibiting at trade fairs. Each company
       has its own booking page and dashboard. This page explains what information the service keeps and why.</p>
 
     <h2>Visitors who book a meeting</h2>
     <p>When you book a meeting we keep what you enter in the form (such as your name, company, email, phone number,
-      country and the products you're interested in) and the time you chose. It's stored in the exhibiting company's
-      own Google Sheet and used only to arrange and follow up on your meeting. We send you emails about your booking.
+      country and the products you're interested in) and the time you chose. It's stored in the service's database
+      (hosted by Supabase), kept apart for each exhibiting company, and used only to arrange and follow up on your meeting. We send you emails about your booking.
       We don't sell or share your information with anyone else.</p>
 
     <h2>People a company invites</h2>
     <p>A company can upload a list of its contacts (first name, last name, email address and company name) to prepare
-      invitations. The list is stored in that company's own Google Sheet, along with who has been marked as sent and when.
+      invitations. The list is stored in the service's database with that company's other data, along with who has been
+      marked as sent and when.
       Each mail is sent by a person at the company, from their own mailbox. To stop receiving these mails, reply and ask
       the company to take you off its list.</p>
 
@@ -47,7 +48,7 @@
         which account is connected and as the sender's address.</li>
     </ul>
     <p>Google's permission is kept on the service's server (Google Apps Script) and is never shown in the website or
-      stored in the company's sheet.</p>
+      stored in the database.</p>
     <p>The company can stop this at any time with "Disconnect" in its dashboard, which also withdraws the permission at
       Google, or at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>
     <p>Expo Meetings' use and transfer of information received from Google APIs adheres to the

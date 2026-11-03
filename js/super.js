@@ -125,7 +125,7 @@ function renderList() {
       <td data-label="Status"><span class="co-status co-status--${esc(c.status.toLowerCase())}">${esc(c.status === "Active" ? "Live" : c.status)}</span></td>
       <td data-label="Expo seats">${s.activeExpos || 0} of ${c.seats} in use<small>${s.expos || 0} expo${s.expos === 1 ? "" : "s"} in all</small></td>
       <td data-label="Requests">${s.requests || 0}${s.error ? `<small class="err">${esc(s.error)}</small>` : ""}</td>
-      <td data-label="Links"><a href="${esc(bookingUrl(c))}" target="_blank" rel="noopener">Booking page</a><small><a href="${esc(adminUrl(c))}" target="_blank" rel="noopener">Dashboard</a>${c.sheetUrl ? ` · <a href="${esc(c.sheetUrl)}" target="_blank" rel="noopener">Sheet</a>` : ""}</small></td>
+      <td data-label="Links"><a href="${esc(bookingUrl(c))}" target="_blank" rel="noopener">Booking page</a><small><a href="${esc(adminUrl(c))}" target="_blank" rel="noopener">Dashboard</a>${c.sheetUrl ? ` · <a href="${esc(c.sheetUrl)}" target="_blank" rel="noopener">Data</a>` : ""}</small></td>
       <td data-label=""><div class="row-actions">
         <button class="act act--primary" type="button" data-edit="${esc(c.id)}">Edit</button>
         <button class="act" type="button" data-open="${esc(c.id)}">Open dashboard</button>
