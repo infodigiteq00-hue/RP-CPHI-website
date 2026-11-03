@@ -19,6 +19,7 @@ let draft = null;    // the settings being edited
 let original = "";   // what they were, to tell whether anything changed
 let isNew = false;   // a new expo, not saved yet
 let savedNote = "";
+let lookupNote = ""; // what the last "Find details online" filled in (HTML)
 
 const settingsDirty = () => !!draft && (isNew || JSON.stringify(draft) !== original);
 const copy = (x) => JSON.parse(JSON.stringify(x));
@@ -28,6 +29,7 @@ function startDraft(from, asNew) {
   delete draft.slots;
   isNew = asNew;
   original = JSON.stringify(draft);
+  lookupNote = "";
 }
 
 // a new expo's starting settings: the company's (from the server), or a copy of the expo picked
@@ -73,7 +75,12 @@ function renderSettings() {
     <section class="set">
       <h2>Expo</h2>
       <div class="set__grid">
-        ${input("Name", "name", d.name, "e.g. CPHI Worldwide 2027")}
+        <div class="field">
+          <label for="set_name">Name</label>
+          <div class="name-find"><input id="set_name" data-bind="name" value="${esc(d.name || "")}" placeholder="e.g. CPHI Worldwide 2027">
+            <button class="btn btn--outline btn--sm" type="button" data-do="lookup">Find details online</button></div>
+          <p class="hint" id="lookupNote">${lookupNote || "Fills in the dates, venue, time zone and opening hours from the internet. You add the booth."}</p>
+        </div>
         <div class="field">
           <label for="set_id">Link name</label>
           <div class="prefixed"><span>${esc(location.host)}/${isRP() ? "" : `${esc(COMPANY_ID)}/`}</span><input id="set_id" data-bind="id" value="${esc(d.id)}" ${isNew ? "" : "readonly"} placeholder="cphi-worldwide-2027"></div>
@@ -285,6 +292,8 @@ function onEdit(e) {
     }
     if (["start", "end", "slotMinutes"].includes(k)) $("#slotPreview").innerHTML = slotPreviewText(previewSlots(draft));
     if (k === "headline" || k === "highlight") showHighlightHint();
+    // a new expo's name typed in: look the rest up
+    if (k === "name" && e.type === "change" && isNew && !draft.days.length && draft.name.trim().length >= 3) lookupExpo();
   } else if (t.dataset.list) {
     const item = draft[t.dataset.list][Number(t.dataset.i)];
     const k = t.dataset.k;
@@ -339,6 +348,7 @@ $("#settingsView").addEventListener("click", async (e) => {
     case "products-none": draft.products = []; return renderSettings();
     case "banner-default": draft.banner = ""; return renderSettings();
     case "make-banner": return makeBanner(b.dataset.kind || "page");
+    case "lookup": return lookupExpo();
     case "copy-link":
       try { await navigator.clipboard.writeText(bookingLink(draft.id)); b.textContent = "Copied"; } catch { b.textContent = "Couldn't copy"; }
       return setTimeout(() => { b.textContent = "Copy"; }, 1500);
@@ -360,6 +370,40 @@ $("#settingsView").addEventListener("click", async (e) => {
 });
 
 // Nano Banana makes a banner for this expo in the company's style (kind "page" or "email")
+// the expo's dates, venue, time zone and opening hours, found online (never the booth or hall)
+async function lookupExpo() {
+  const d = draft;
+  const name = d.name.trim();
+  const note = $("#lookupNote");
+  if (name.length < 3) { note.innerHTML = `<span class="err">Type the expo's name first.</span>`; return; }
+  const btn = $('[data-do="lookup"]');
+  btn.disabled = true;
+  note.innerHTML = `<span class="spinner" aria-hidden="true"></span> Looking up ${esc(name)} online. This takes a few seconds…`;
+  let msg;
+  try {
+    const r = await api("expoLookup", { token: store.get(TOKEN_KEY), name });
+    if (!r.ok) throw Object.assign(new Error(r.error), { detail: r.detail });
+    const x = r.expo;
+    const got = [];
+    if (x.days.length) { d.days = x.days; got.push("dates"); }
+    if (x.venue) { d.venue = x.venue; got.push("venue"); }
+    if (x.timezone) { d.timezone = x.timezone; d.tzLabel = tzShortName(x.timezone, d.days[0]) || d.tzLabel; got.push("time zone"); }
+    if (x.start) { d.start = x.start; d.end = x.end; got.push("opening hours"); }
+    if (isNew && !d.id) d.id = (x.name || name).toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+    if (!d.subline && x.city && x.days.length) d.subline = `Meet us in ${x.city}, ${inviteDates(x.days)}. Book a ${d.slotMinutes}-minute slot.`;
+    const src = r.sources.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title || "source")}</a>`).join(", ");
+    msg = r.found && got.length
+      ? `<span class="hint-ok">Filled in from the internet: ${got.join(", ")}.</span> Check them before saving${src ? ` (from ${src})` : ""}. Add your booth and hall.`
+      : `<span class="hint-warn">Couldn't find ${esc(name)} online.</span> Check the name, or fill in the details yourself.`;
+  } catch (ex) {
+    if (ex.message === "auth") return;
+    msg = `<span class="err">${esc(ex.detail || { invalid_slot: "The Apps Script is an older version. Update Code.gs to look up expos." }[ex.message] || "Couldn't look it up. Try again.")}</span>`;
+  }
+  if (draft !== d) return; // moved to another expo meanwhile
+  lookupNote = msg;
+  renderSettings();
+}
+
 async function makeBanner(kind) {
   const busy = kind === "email" ? $("#emailBannerBusy") : $("#bannerBusy");
   const err = kind === "email" ? $("#emailBannerErr") : $("#bannerErr");

@@ -269,6 +269,9 @@ tr.is-cancelled td:not(:last-child) { opacity: .5; }
 .chip-date { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 10px; border: 1px solid var(--line); border-radius: 4px; font-size: 14px; font-weight: 600; }
 .chip-date button { width: 22px; height: 22px; border: 0; border-radius: 3px; background: none; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
 .chip-date button:hover { background: var(--bg-soft); color: var(--red); }
+.name-find { display: flex; flex-wrap: wrap; gap: 8px; }
+.name-find input { flex: 1 1 200px; min-width: 0; }
+.name-find .btn { flex: none; }
 .inline-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
 .inline-add .label { margin: 0 4px 0 0; }
 .set .inline-add input[type="date"] { height: 40px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 15px; }
