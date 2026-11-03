@@ -12,12 +12,19 @@ const MAIL_ERRORS = {
   no_draft_permission: "Google wasn't given permission for drafts. Connect again and leave “Manage drafts and send emails” ticked.",
   no_refresh: "Google didn't give lasting permission. Remove this app at myaccount.google.com/permissions, then connect again.",
   busy: "The sheet is busy. Try again in a moment.",
+  invalid_cc: "One of the CC addresses doesn't look right (at most 20, separated with commas).",
   invalid_slot: "The Apps Script is an older version. Paste the latest Code.gs and deploy a New version, then try again.",
 };
 const mail = { status: null, list: null, people: [], asking: null };
 const mailToken = () => store.get(TOKEN_KEY);
 const isHtml = (t) => /<\/?(html|body|p|div|table|br|a|img)\b/i.test(t);
 const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+// the CC field: distinct addresses, or null if one isn't an address
+const ccList = (v) => {
+  const out = [...new Set(String(v || "").split(/[\s,;]+/).filter(Boolean).map((e) => e.toLowerCase()))];
+  return out.every((e) => EMAIL_OK.test(e)) && out.length <= 20 ? out : null;
+};
+const CC_KEY = () => `mailer_cc_${(state.company && state.company.id) || "rp"}`;
 
 // ---------- each person's mail ----------
 // {first_name} and the others; in an HTML mail the values are escaped
@@ -129,6 +136,7 @@ function fillStart() {
 
 async function openMailer() {
   fillStart();
+  try { if (!$("#mCc").value) $("#mCc").value = localStorage.getItem(CC_KEY()) || ""; } catch {}
   try {
     const r = await api("mailStatus", { token: mailToken() });
     if (r.ok) renderMail(r);
@@ -226,13 +234,16 @@ $("#mailForm").addEventListener("submit", async (e) => {
   const { people } = parseList($("#mList").value);
   const subject = $("#mSubject").value.trim();
   const message = $("#mMessage").value;
+  const cc = ccList($("#mCc").value);
   if (!subject || !message.trim()) return showErr(MAIL_ERRORS.empty);
+  if (!cc) return showErr(MAIL_ERRORS.invalid_cc);
   if (!people.length) return showErr(MAIL_ERRORS.no_recipients);
+  try { localStorage.setItem(CC_KEY(), cc.join(", ")); } catch {}
   const btn = $("#mailReady");
   btn.disabled = true;
   btn.textContent = "Getting them ready…";
   try {
-    const r = await api("mailSave", { token: mailToken(), subject, message, people });
+    const r = await api("mailSave", { token: mailToken(), subject, message, cc: cc.join(", "), people });
     if (!r.ok) throw new Error(r.error);
     ["mStart", "mSubject", "mMessage", "mList"].forEach((id) => { $(`#${id}`).value = ""; });
     countLine();
@@ -268,7 +279,7 @@ function renderReady() {
   const sent = mail.people.filter((p) => p.sentAt).length;
   const total = mail.people.length;
   $("#mReadyTitle").textContent = sent === total ? "All your emails are sent" : `Your emails are ready: ${total - sent} to send`;
-  $("#mReadyLine").textContent = `${mail.list.subject} · ${sent} of ${total} sent`;
+  $("#mReadyLine").textContent = `${mail.list.subject} · ${sent} of ${total} sent${mail.list.cc ? ` · CC ${mail.list.cc}` : ""}`;
   $("#mBoxWrap").hidden = draftMode();
   $("#mPeople").innerHTML = mail.people.map((p) => {
     const a = mail.asking && mail.asking.email === p.email ? mail.asking : null;
@@ -286,12 +297,13 @@ function renderReady() {
 }
 
 // the mailbox's compose address; body only if it fits in a link
-function composeUrl(box, to, subject, body) {
+function composeUrl(box, to, subject, body, cc) {
   const q = encodeURIComponent;
-  if (box === "outlook") return `https://outlook.office.com/mail/deeplink/compose?to=${q(to)}&subject=${q(subject)}&body=${q(body)}`;
-  if (box === "outlook-live") return `https://outlook.live.com/mail/0/deeplink/compose?to=${q(to)}&subject=${q(subject)}&body=${q(body)}`;
-  if (box === "mailto") return `mailto:${q(to)}?subject=${q(subject)}&body=${q(body)}`;
-  return `https://mail.google.com/mail/?view=cm&fs=1&to=${q(to)}&su=${q(subject)}&body=${q(body)}`;
+  const c = cc ? `&cc=${q(cc)}` : "";
+  if (box === "outlook") return `https://outlook.office.com/mail/deeplink/compose?to=${q(to)}${c}&subject=${q(subject)}&body=${q(body)}`;
+  if (box === "outlook-live") return `https://outlook.live.com/mail/0/deeplink/compose?to=${q(to)}${c}&subject=${q(subject)}&body=${q(body)}`;
+  if (box === "mailto") return `mailto:${q(to)}?${c.slice(1)}${c ? "&" : ""}subject=${q(subject)}&body=${q(body)}`;
+  return `https://mail.google.com/mail/?view=cm&fs=1&to=${q(to)}${c}&su=${q(subject)}&body=${q(body)}`;
 }
 
 function copyMail(html, text) {
@@ -319,7 +331,7 @@ async function sendOne(p) {
     renderReady();
     let r;
     try {
-      r = await api("makeDraft", { token: mailToken(), to: p.email, subject, message });
+      r = await api("makeDraft", { token: mailToken(), to: p.email, cc: mail.list.cc, subject, message });
     } catch (ex) {
       r = { ok: false, error: ex.message };
     }
@@ -332,12 +344,12 @@ async function sendOne(p) {
     if (r.error === "reconnect" || r.error === "no_draft_permission") openMailer();
     mail.asking.note = `Couldn't make the draft, so it opens the manual way. ${fits ? "Press Send." : PASTE}`;
     renderReady();
-    if (win) win.location.href = composeUrl("gmail", p.email, subject, fits ? text : "");
+    if (win) win.location.href = composeUrl("gmail", p.email, subject, fits ? text : "", mail.list.cc);
     return;
   }
   mail.asking = { email: p.email, note: fits ? "Press Send in your mailbox." : PASTE };
   renderReady();
-  const url = composeUrl(box, p.email, subject, fits ? text : "");
+  const url = composeUrl(box, p.email, subject, fits ? text : "", mail.list.cc);
   if (box === "mailto") window.location.href = url; else window.open(url, "_blank", "noopener");
 }
 
