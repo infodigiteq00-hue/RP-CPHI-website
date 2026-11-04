@@ -675,8 +675,26 @@
             <label for="t-name">Expo name<input id="t-name" placeholder="e.g. Pharma Pro &amp; Pack Expo 2027"></label>
             <div class="row2">
               <label for="t-city">City<input id="t-city" placeholder="Mumbai"></label>
-              <label for="t-date">First day<input id="t-date" type="date"></label>
+              <label for="t-venue">Venue (optional)<input id="t-venue" placeholder="Bombay Exhibition Centre"></label>
             </div>
+            <div class="row2">
+              <label for="t-date">First day<input id="t-date" type="date"></label>
+              <label for="t-end">Last day<input id="t-end" type="date"></label>
+            </div>
+            <label for="t-ind">Industry
+              <select id="t-ind">
+                <option value="">Pick for me</option>
+                <option value="pharma">Pharma</option>
+                <option value="chem">Chemicals</option>
+                <option value="energy">Energy, oil and gas</option>
+                <option value="tech">Technology and electronics</option>
+                <option value="plastics">Plastics</option>
+                <option value="machine">Machinery and engineering</option>
+                <option value="health">Healthcare</option>
+                <option value="food">Food and drink</option>
+                <option value="generic">Something else</option>
+              </select>
+            </label>
           </div>
           <label for="t-company">Your company<input id="t-company" placeholder="Acme Polymers" autocomplete="organization"></label>
           <div class="row2">
@@ -1052,13 +1070,28 @@
       '<option value="other">Another expo…</option>';
     sel.addEventListener('change', function () { other.hidden = sel.value !== 'other'; if (!other.hidden) document.getElementById('t-name').focus(); });
 
+    // an expo that is not in the list: the banner takes its skyline from the city and its colours from the industry
+    var CITY_LAND = { 'new delhi': 'arch', delhi: 'arch', mumbai: 'gateway', bombay: 'gateway', dubai: 'spire', 'abu dhabi': 'domes', 'las vegas': 'sphere', barcelona: 'spires',
+      tokyo: 'tower', milan: 'duomo', milano: 'duomo', frankfurt: 'glass', hannover: 'modern', hanover: 'modern', bengaluru: 'dome', bangalore: 'dome', philadelphia: 'clock' };
+    function guessLandmark(city) { return CITY_LAND[String(city || '').trim().toLowerCase()] || 'generic'; }
+    function guessIndustry(name) {
+      var n = String(name || '').toLowerCase();
+      var rules = [['pharma', /pharm|cphi|drug|api\b|medicine/], ['chem', /chem|achema/], ['energy', /oil|gas|energy|petro|adipec|power|solar|renewable/], ['tech', /tech|electronic|mobile|mwc|ces\b|software|digital|ai\b/],
+        ['plastics', /plast|rubber|polymer/], ['machine', /machine|tool|engineer|industr|manufactur|messe|imtex|auto/], ['health', /health|medical|hospital|dental|whx|arab health/], ['food', /food|drink|beverage|gulfood|agri|bakery/]];
+      for (var i = 0; i < rules.length; i++) if (rules[i][1].test(n)) return rules[i][0];
+      return 'generic';
+    }
+
     // the details, from the form (examples where it's empty)
     function details() {
       var v = function (id) { return document.getElementById(id).value.trim(); };
       var e;
       if (sel.value === 'other') {
+        var name = v('t-name'), city = v('t-city');
         var start = v('t-date') ? dt(v('t-date')) : new Date(now.getTime() + 60 * DAY);
-        e = { name: v('t-name') || 'your expo', city: v('t-city') || '', s: start, e: new Date(start.getTime() + 2 * DAY), k: 'generic', l: 'generic', v: '' };
+        var last = v('t-end') ? dt(v('t-end')) : null;
+        if (!last || last < start) last = new Date(start.getTime() + 2 * DAY);
+        e = { name: name || 'your expo', city: city, s: start, e: last, k: v('t-ind') || guessIndustry(name), l: guessLandmark(city), v: v('t-venue') };
       } else {
         var x = ahead[+sel.value] || ahead[0];
         e = { name: title(x), city: x.c, s: x.s, e: x.e, k: x.k, l: x.l, v: x.v };
@@ -1254,6 +1287,11 @@
     prev.addEventListener('click', function () { stop(); show(at - 1, true); });
     next.addEventListener('click', function () { stop(); show(at === STEPS.length - 1 ? 0 : at + 1, true); });
     panel.addEventListener('pointerenter', stop);
+    // the example follows the form: choosing an expo or typing a detail updates the invitation straight away
+    var live = 0;
+    function refresh() { clearTimeout(live); live = setTimeout(function () { D = details(); render(at, false); }, 120); }
+    form.addEventListener('input', refresh);
+    form.addEventListener('change', refresh);
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       D = details(); show(0, true); play();
@@ -1275,7 +1313,7 @@
       var want = q.get('expo').toLowerCase().replace(/\s+\d{4}$/, '');
       var k = ahead.findIndex(function (x) { return x.n.toLowerCase() === want || want.indexOf(x.n.toLowerCase()) === 0; });
       if (k >= 0) sel.value = String(k);
-      else { sel.value = 'other'; other.hidden = false; document.getElementById('t-name').value = q.get('expo').slice(0, 80); if (q.get('city')) document.getElementById('t-city').value = q.get('city').slice(0, 60); }
+      else { sel.value = 'other'; other.hidden = false; document.getElementById('t-name').value = q.get('expo').slice(0, 80); if (q.get('city')) document.getElementById('t-city').value = q.get('city').slice(0, 60); if (q.get('venue')) document.getElementById('t-venue').value = q.get('venue').slice(0, 80); }
     }
     D = details();
     show(0, false);
