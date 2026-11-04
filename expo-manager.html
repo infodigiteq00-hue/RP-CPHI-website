@@ -103,10 +103,8 @@
   .try-stage .w1::after { content: ""; position: absolute; top: -20%; left: -40%; width: 55%; height: 140%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.07), transparent); animation: sweep 8s ease-in-out infinite alternate; }
   .try-stage .w2 { background: linear-gradient(180deg, #ffeedd, #fffaf4 70%); }
   @keyframes sweep { to { transform: translateX(260%); } }
-  @media (prefers-color-scheme: dark) {
-    .try-stage .w0 { background: linear-gradient(180deg, #10263a, #0c151d 70%); }
-    .try-stage .w2 { background: linear-gradient(180deg, #2c1b10, #150f0b 70%); }
-  }
+  :root[data-theme="dark"] .try-stage .w0 { background: linear-gradient(180deg, #10263a, #0c151d 70%); }
+  :root[data-theme="dark"] .try-stage .w2 { background: linear-gradient(180deg, #2c1b10, #150f0b 70%); }
   .try-stage[data-stage="0"] .w0, .try-stage[data-stage="1"] .w1, .try-stage[data-stage="2"] .w2 { opacity: 1; }
   .try-stage[data-stage="1"] { --s-ink: #eef1f5; --s-ink2: #b6bdc8; --s-muted: #8f98a5; --s-line: #263040; --s-card: #11161d; --s-was: #171d26; --s-now: #2b1810; border-color: #263040; }
   .try-rail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
@@ -1165,17 +1163,17 @@
             '<div class="ms-slots">' + slots.map(function (t, i) { return '<span' + (i === 1 || i === 6 ? ' class="taken"' : '') + (i === 3 ? ' data-pick' : '') + '>' + t + '</span>'; }).join('') + '</div></div></div>';
         },
         after: function () { var p = panel.querySelector('[data-pick]'); if (p) { p.className = 'pick'; p.innerHTML = '11:30<small>Priya Menon</small>'; } } },
-      { stage: 1, tab: 'Voice note', title: function () { return 'A short voice note, nothing more'; },
-        was: 'Meetings run back to back, and there is rarely a moment to write anything down.',
-        now: 'After each conversation, a short voice note is enough, even when the hall has no signal.',
+      { stage: 1, tab: 'Quick note', title: function () { return 'Record it in a second. Walk on to the next client.'; },
+        was: 'Meetings run back to back. Writing notes means keeping your next client waiting, so most of it never gets written.',
+        now: 'Say what mattered in a few seconds and move on. Expo Manager does the rest, even when the hall has no signal.',
         screen: function () {
           var bars = ''; for (var i = 0; i < 26; i++) bars += '<i style="height:' + (6 + (i * 7) % 20) + 'px;animation-delay:' + (i * 0.05).toFixed(2) + 's"></i>';
           return '<div class="ms"><div class="ms-body"><div class="ms-note"><span class="mic"><i class="ph-fill ph-microphone"></i></span><span class="ms-wave">' + bars + '</span><time>0:38</time></div>' +
             '<p class="ms-quote">"Priya, Sunrise Industries. Their current supplier was late twice this year. They need around 500 kg a month, and certificates by Friday. Call her next week."</p></div></div>';
         } },
-      { stage: 1, tab: 'Summary', title: function () { return 'A clear summary, written for you'; },
+      { stage: 1, tab: 'We do the rest', title: function () { return 'Expo Manager writes it up for you'; },
         was: 'By the second day of the show, conversations start to blur together.',
-        now: 'Each note becomes a clear summary: their problem, what they need, and what you agreed. Only what was said, nothing added.',
+        now: 'Your note becomes a clear summary: their problem, what they need, and what you agreed. Only what was said, nothing added.',
         screen: function () {
           return '<div class="ms"><div class="ms-body"><div class="ms-head"><b>Meeting summary</b><span>Priya Menon, Sunrise Industries · ' + esc(D.expo) + '</span></div>' +
             '<div class="ms-sum"><h5>Their problem</h5><ul><li>Current supplier delivered late twice this year</li></ul>' +
