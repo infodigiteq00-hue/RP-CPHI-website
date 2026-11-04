@@ -94,24 +94,85 @@
   .try-form .row2 { gap: 10px; }
   .try-form .btn { width: 100%; }
   .try-form small { color: var(--muted); font-size: 13px; }
-  .try-stage { min-width: 0; }
-  .try-steps { list-style: none; margin: 0 0 16px; padding: 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
-  .try-steps button { width: 100%; display: grid; gap: 6px; padding: 10px 8px 8px; border: 0; border-top: 3px solid var(--line); background: none; color: var(--muted); font: 600 13px/1.25 Geist, sans-serif; text-align: left; cursor: pointer; }
-  .try-steps button span { font: 500 11px "Geist Mono", monospace; letter-spacing: .06em; }
-  .try-steps button.done { border-top-color: color-mix(in srgb, var(--accent) 45%, var(--line)); color: var(--ink2); }
-  .try-steps button[aria-selected="true"] { border-top-color: var(--accent); color: var(--ink); }
-  .try-panel { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 24px; padding: 28px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); min-height: 440px; }
+  /* the walkthrough is a small "world" that changes with the stage: before, during and after the expo */
+  .try-stage { position: relative; min-width: 0; padding: 18px; border-radius: var(--r); border: 1px solid var(--line); overflow: hidden; isolation: isolate;
+    --s-ink: var(--ink); --s-ink2: var(--ink2); --s-muted: var(--muted); --s-line: var(--line); --s-card: var(--surface); --s-was: var(--bg); --s-now: var(--accent-soft); }
+  .try-stage .w { position: absolute; inset: 0; z-index: -1; opacity: 0; transition: opacity .9s ease; }
+  .try-stage .w0 { background: linear-gradient(180deg, #e3f0fb, #f4f9fe 70%); }
+  .try-stage .w1 { background: radial-gradient(ellipse 70% 55% at 50% -8%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 72%), #0a0e14; overflow: hidden; }
+  .try-stage .w1::after { content: ""; position: absolute; top: -20%; left: -40%; width: 55%; height: 140%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.07), transparent); animation: sweep 8s ease-in-out infinite alternate; }
+  .try-stage .w2 { background: linear-gradient(180deg, #ffeedd, #fffaf4 70%); }
+  @keyframes sweep { to { transform: translateX(260%); } }
+  @media (prefers-color-scheme: dark) {
+    .try-stage .w0 { background: linear-gradient(180deg, #10263a, #0c151d 70%); }
+    .try-stage .w2 { background: linear-gradient(180deg, #2c1b10, #150f0b 70%); }
+  }
+  .try-stage[data-stage="0"] .w0, .try-stage[data-stage="1"] .w1, .try-stage[data-stage="2"] .w2 { opacity: 1; }
+  .try-stage[data-stage="1"] { --s-ink: #eef1f5; --s-ink2: #b6bdc8; --s-muted: #8f98a5; --s-line: #263040; --s-card: #11161d; --s-was: #171d26; --s-now: #2b1810; border-color: #263040; }
+  .try-rail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+  .rail-stage { display: block; width: 100%; border: 0; background: none; padding: 0; text-align: left; cursor: pointer; color: var(--s-muted); font: inherit; transition: color .5s; }
+  .rail-stage .bar { display: block; height: 4px; border-radius: 2px; background: var(--s-line); overflow: hidden; margin-bottom: 10px; }
+  .rail-stage .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .7s cubic-bezier(.16,1,.3,1); }
+  .rail-stage b { display: block; font-size: 16px; letter-spacing: -.02em; line-height: 1.2; }
+  .rail-stage small { display: block; margin-top: 2px; font: 500 11px "Geist Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
+  .rail-stage.on { color: var(--s-ink); }
+  .rail-steps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .rail-steps button { border: 1px solid var(--s-line); background: none; color: var(--s-muted); font: 500 12px Geist, sans-serif; padding: 4px 10px; border-radius: 999px; cursor: pointer; transition: background .3s, color .3s, border-color .3s; }
+  .rail-steps button.done { border-color: color-mix(in srgb, var(--accent) 50%, var(--s-line)); color: var(--s-ink2); }
+  .rail-steps button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600; }
+  .try-panel { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 24px; padding: 22px 26px 28px; background: var(--s-card); color: var(--s-ink); border: 1px solid var(--s-line); border-radius: 12px; min-height: 480px; transition: background .7s, color .7s, border-color .7s; }
+  .try-scene { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--s-line); font: 600 12px "Geist Mono", monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--s-muted); }
+  .try-scene .live { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); }
+  .try-scene .live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 1.4s ease-in-out infinite; }
+  .try-scene .done-tag { color: #16a34a; display: inline-flex; gap: 6px; align-items: center; }
+  @keyframes pulse { 50% { opacity: .25; transform: scale(.7); } }
   .try-words { display: grid; align-content: start; gap: 18px; }
   .try-words h3 { margin: 0; font-size: clamp(22px, 2.4vw, 30px); letter-spacing: -.03em; line-height: 1.15; }
   .try-words .was, .try-words .now { margin: 0; padding: 14px 16px; border-radius: 12px; font-size: 15.5px; line-height: 1.5; }
-  .try-words .was { background: var(--bg); color: var(--ink2); }
-  .try-words .now { background: var(--accent-soft); color: var(--ink); }
+  .try-words .was { background: var(--s-was); color: var(--s-ink2); }
+  .try-words .now { background: var(--s-now); color: var(--s-ink); }
   .try-words .was b, .try-words .now b { display: block; margin-bottom: 4px; font: 600 11px "Geist Mono", monospace; letter-spacing: .1em; text-transform: uppercase; }
-  .try-words .was b { color: var(--muted); }
+  .try-words .was b { color: var(--s-muted); }
   .try-words .now b { color: var(--accent); }
   .try-screen { align-self: center; }
   .try-panel.enter .try-screen > * { animation: tryIn .5s cubic-bezier(.16,1,.3,1) both; }
   @keyframes tryIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .try-curtain { position: absolute; inset: 0; z-index: 6; display: grid; place-content: center; gap: 10px; padding: 24px; text-align: center; color: #fff; transform: translateY(101%); pointer-events: none; }
+  .try-curtain.go { animation: curtain 1.8s cubic-bezier(.7,0,.2,1) both; }
+  .try-curtain small { font: 600 12px "Geist Mono", monospace; letter-spacing: .14em; text-transform: uppercase; opacity: .8; }
+  .try-curtain strong { font-size: clamp(30px, 4.4vw, 54px); letter-spacing: -.04em; line-height: 1.05; }
+  .try-curtain span { font-size: 17px; opacity: .88; }
+  @keyframes curtain { 0% { transform: translateY(101%); } 30%, 66% { transform: translateY(0); } 100% { transform: translateY(-101%); } }
+  .try-nav .btn--line { color: var(--s-ink); border-color: var(--s-line); }
+  .try-nav .btn--ink { background: var(--accent); color: #0d1117; }
+  .try-nav .btn--ink:hover { filter: brightness(1.08); }
+  .try-nav, .try-nav span { color: var(--s-muted); }
+
+  /* the personal invitation, built from the visitor's expo: the same banner for every client of that expo */
+  .inv { background: #fff; color: #1a2233; border: 1px solid #dde1e6; border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; font-size: 13.5px; line-height: 1.5; }
+  .inv-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #eef0f3; }
+  .inv-brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 14px; min-width: 0; }
+  .inv-brand span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .inv-logo { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; border: 1.5px dashed #b6bdc8; color: #8a93a1; font: 700 11px "Geist Mono", monospace; letter-spacing: .04em; }
+  .inv-certs { display: flex; gap: 6px; flex: none; }
+  .inv-certs i { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; border: 1.5px dashed #c9ced6; color: #a0a7b1; font-size: 13px; }
+  .inv-banner { position: relative; aspect-ratio: 640 / 210; overflow: hidden; color: #fff; background: #1f2937; }
+  .inv-banner .bn { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .inv-banner-txt { position: absolute; inset: 0; display: grid; align-content: center; gap: 4px; padding: 0 18px; width: 62%; text-shadow: 0 1px 10px rgba(0,0,0,.35); }
+  .inv-banner-txt small { font: 600 9.5px "Geist Mono", monospace; letter-spacing: .16em; text-transform: uppercase; opacity: .9; }
+  .inv-banner-txt strong { font-size: clamp(18px, 2.2vw, 24px); line-height: 1.08; letter-spacing: -.03em; }
+  .inv-banner-txt span { font-size: 12px; opacity: .92; }
+  .inv-body { padding: 16px 18px 18px; }
+  .inv-body p { margin: 0 0 9px; }
+  .inv-facts { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid #e3e6ea; border-radius: 10px; overflow: hidden; margin: 12px 0; }
+  .inv-facts div { padding: 9px 10px; min-width: 0; }
+  .inv-facts div + div { border-left: 1px solid #e3e6ea; }
+  .inv-facts small { display: block; font: 600 9.5px "Geist Mono", monospace; letter-spacing: .1em; text-transform: uppercase; color: #6b7480; margin-bottom: 2px; }
+  .inv-facts b { display: block; font-size: 12.5px; line-height: 1.3; }
+  .inv .go { display: inline-block; padding: 10px 16px; border-radius: 9px; background: #1a2233; color: #fff; font-weight: 600; font-size: 13px; }
+  .inv-note { margin-top: 10px; font-size: 11.5px; color: #6b7480; }
+  .inv-sign { margin-top: 12px; padding-top: 10px; border-top: 1px solid #eef0f3; font-size: 12px; color: #5b6370; }
+
   .try-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; font-size: 14px; color: var(--muted); }
   .try-nav .btn { padding: 11px 18px; font-size: 14px; }
   .try-nav .btn[disabled] { opacity: .4; cursor: default; }
@@ -356,14 +417,19 @@
     .ctrl { grid-template-columns: 1fr; }
     .pair { grid-template-columns: 1fr; }
     .pain, .fix { padding: 22px; }
-    .try-steps { grid-template-columns: repeat(3, 1fr); row-gap: 4px; }
+    .rail-steps { display: none; }
+    .rail-stage b { font-size: 14px; }
+    .try-stage { padding: 12px; }
+    .inv-facts { grid-template-columns: 1fr; }
+    .inv-facts div + div { border-left: 0; border-top: 1px solid #e3e6ea; }
     .try-panel { padding: 18px; }
     .rate-row { grid-template-columns: repeat(5, 1fr); }
     .clock li { grid-template-columns: 70px 1fr; gap: 14px; }
   }
   @media (max-width: 520px) { .nav-links { gap: 10px; } .nav-links .nav-demo { display: none; } .live-proof .sep { display: none; } .wrap { width: calc(100% - 32px); } .hero-note { display: none; } .setup { grid-template-columns: 1fr; } }
   @media (prefers-reduced-motion: reduce) {
-    .sign-track, .live-proof strong i, .ms-wave i, .try-panel.enter .try-screen > * { animation: none; }
+    .sign-track, .live-proof strong i, .ms-wave i, .try-panel.enter .try-screen > *, .try-stage .w1::after, .try-scene .live::before { animation: none; }
+    .try-curtain.go { animation: none; }
     html { scroll-behavior: auto; }
     .js .rv { opacity: 1; transform: none; transition: none; }
     .hero .rise { animation: none; }
@@ -622,8 +688,10 @@
           <button class="btn btn--ink" type="submit">Show me <i class="ph ph-arrow-right"></i></button>
           <small>Nothing is sent anywhere. It's an example built in your browser.</small>
         </form>
-        <div class="try-stage">
-          <div class="try-steps" role="tablist" aria-label="The journey" id="trySteps"></div>
+        <div class="try-stage" id="tryStage" data-stage="0">
+          <i class="w w0"></i><i class="w w1"></i><i class="w w2"></i>
+          <div class="try-curtain" id="tryCurtain" aria-hidden="true"></div>
+          <div class="try-rail" role="tablist" aria-label="The three parts of an expo" id="trySteps"></div>
           <div class="try-panel" id="tryPanel" role="tabpanel" aria-live="polite"></div>
           <div class="try-nav">
             <button class="btn btn--line" type="button" id="tryPrev">Back</button>
@@ -940,24 +1008,25 @@
 
   // Expo calendar. To add a show: name, city, first day, last day (YYYY-MM-DD).
   // The page shows what is on now and next, and drops shows once they have ended.
+  // name, city, first day, last day, industry (picks the banner's colours), landmark (picks its skyline), venue
   var EXPOS = [
-    ['CPHI Americas', 'Philadelphia', '2026-06-02', '2026-06-04'],
-    ['CPHI Worldwide', 'Milan', '2026-10-06', '2026-10-08'],
-    ['ADIPEC', 'Abu Dhabi', '2026-11-02', '2026-11-05'],
-    ['CPHI India', 'New Delhi', '2026-11-23', '2026-11-25'],
-    ['CES', 'Las Vegas', '2027-01-06', '2027-01-09'],
-    ['Plastivision India', 'Mumbai', '2027-01-21', '2027-01-25'],
-    ['IMTEX', 'Bengaluru', '2027-01-21', '2027-01-27'],
-    ['WHX Dubai', 'Dubai', '2027-01-25', '2027-01-28'],
-    ['MWC Barcelona', 'Barcelona', '2027-03-01', '2027-03-04'],
-    ['Gulfood', 'Dubai', '2027-03-15', '2027-03-19'],
-    ['Hannover Messe', 'Hannover', '2027-04-05', '2027-04-08'],
-    ['CPHI Japan', 'Tokyo', '2027-04-21', '2027-04-23'],
-    ['ACHEMA', 'Frankfurt', '2027-06-14', '2027-06-18']
+    ['CPHI Americas', 'Philadelphia', '2026-06-02', '2026-06-04', 'pharma', 'clock', 'Pennsylvania Convention Center'],
+    ['CPHI Worldwide', 'Milan', '2026-10-06', '2026-10-08', 'pharma', 'duomo', 'Fiera Milano'],
+    ['ADIPEC', 'Abu Dhabi', '2026-11-02', '2026-11-05', 'energy', 'domes', 'ADNEC'],
+    ['CPHI India', 'New Delhi', '2026-11-23', '2026-11-25', 'pharma', 'arch', 'IICC Yashobhoomi'],
+    ['CES', 'Las Vegas', '2027-01-06', '2027-01-09', 'tech', 'sphere', 'Las Vegas Convention Center'],
+    ['Plastivision India', 'Mumbai', '2027-01-21', '2027-01-25', 'plastics', 'gateway', ''],
+    ['IMTEX', 'Bengaluru', '2027-01-21', '2027-01-27', 'machine', 'dome', ''],
+    ['WHX Dubai', 'Dubai', '2027-01-25', '2027-01-28', 'health', 'spire', ''],
+    ['MWC Barcelona', 'Barcelona', '2027-03-01', '2027-03-04', 'tech', 'spires', 'Fira Barcelona Gran Via'],
+    ['Gulfood', 'Dubai', '2027-03-15', '2027-03-19', 'food', 'spire', 'Dubai World Trade Centre'],
+    ['Hannover Messe', 'Hannover', '2027-04-05', '2027-04-08', 'machine', 'modern', 'Hannover Exhibition Grounds'],
+    ['CPHI Japan', 'Tokyo', '2027-04-21', '2027-04-23', 'pharma', 'tower', ''],
+    ['ACHEMA', 'Frankfurt', '2027-06-14', '2027-06-18', 'chem', 'glass', 'Messe Frankfurt']
   ];
   var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], DAY = 864e5, now = new Date();
   function dt(t, end) { var p = t.split('-'); return new Date(+p[0], p[1] - 1, +p[2], end ? 23 : 0, end ? 59 : 0, 0); }
-  var list = EXPOS.map(function (x) { return { n: x[0], c: x[1], s: dt(x[2]), e: dt(x[3], 1) }; });
+  var list = EXPOS.map(function (x) { return { n: x[0], c: x[1], s: dt(x[2]), e: dt(x[3], 1), k: x[4], l: x[5], v: x[6] }; });
   var ahead = list.filter(function (x) { return x.e >= now; }).sort(function (a, b) { return a.s - b.s; });
   function range(x) { var a = x.s, b = x.e; return a.getMonth() === b.getMonth() ? a.getDate() + '–' + b.getDate() + ' ' + MON[b.getMonth()] : a.getDate() + ' ' + MON[a.getMonth()] + ' – ' + b.getDate() + ' ' + MON[b.getMonth()]; }
   var big = ahead.slice(0, 4).map(function (x) { return '<li>' + x.n + '</li>'; }).join('');
@@ -991,14 +1060,14 @@
       var e;
       if (sel.value === 'other') {
         var start = v('t-date') ? dt(v('t-date')) : new Date(now.getTime() + 60 * DAY);
-        e = { name: v('t-name') || 'your expo', city: v('t-city') || '', s: start, e: new Date(start.getTime() + 2 * DAY) };
+        e = { name: v('t-name') || 'your expo', city: v('t-city') || '', s: start, e: new Date(start.getTime() + 2 * DAY), k: 'generic', l: 'generic', v: '' };
       } else {
         var x = ahead[+sel.value] || ahead[0];
-        e = { name: title(x), city: x.c, s: x.s, e: x.e };
+        e = { name: title(x), city: x.c, s: x.s, e: x.e, k: x.k, l: x.l, v: x.v };
       }
       var days = [];
       for (var d = new Date(e.s); d <= e.e && days.length < 3; d = new Date(d.getTime() + DAY)) days.push(d);
-      return { expo: e.name, city: e.city, dates: range({ s: e.s, e: e.e }), days: days,
+      return { expo: e.name, city: e.city, dates: range({ s: e.s, e: e.e }), days: days, ind: e.k, land: e.l, venue: e.v, first: e.s,
         company: v('t-company') || 'Acme Polymers', hall: v('t-hall') || 'Hall 2', booth: v('t-booth') || 'B14' };
     }
     var D = null, at = 0, timer = 0, playing = false;
@@ -1006,17 +1075,86 @@
     var stand = function () { return [D.hall, D.booth && 'Booth ' + D.booth].filter(Boolean).join(', '); };
     var dayName = function (d) { return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); };
 
+    // ----- the invitation banner: colours from the industry, a skyline from the city. One per expo, reused for every client. -----
+    var PAL = { pharma: ['#0b3558', '#3aa6c9', '#c3ecf7'], energy: ['#3a1708', '#f08a1c', '#ffe29a'], tech: ['#0a1230', '#2f6bf0', '#bcd3ff'],
+      plastics: ['#05423a', '#2fcf9b', '#cdf8e8'], machine: ['#1b2433', '#8da2bd', '#e4ebf3'], health: ['#0f4a47', '#4fd6c4', '#d6fbf5'],
+      food: ['#6b2410', '#f4ae2c', '#ffe8aa'], chem: ['#0d3b3d', '#5fd8e8', '#d6f7fb'], generic: ['#1f2937', '#64748b', '#e2e8f0'] };
+    var MOTIF = { pharma: 'hex', chem: 'hex', energy: 'rings', tech: 'circuit', plastics: 'dots', machine: 'gears', health: 'plus', food: 'rings2', generic: 'dots' };
+    function rng(seed) { var h = 0; for (var i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0; return function () { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; }; }
+    var bnId = 0;
+    function landmark(l, cx, H) {
+      var f = function (n) { return Math.round(n * 10) / 10; };
+      switch (l) {
+        case 'arch': case 'gateway': {
+          var o = '<path fill-rule="evenodd" d="M' + (cx - 48) + ' ' + H + 'V' + (H - 92) + 'H' + (cx + 48) + 'V' + H + 'ZM' + (cx - 16) + ' ' + H + 'V' + (H - 46) + 'A16 16 0 0 1 ' + (cx + 16) + ' ' + (H - 46) + 'V' + H + 'Z"/>' +
+            '<rect x="' + (cx - 54) + '" y="' + (H - 102) + '" width="108" height="10"/>';
+          if (l === 'gateway') o += '<circle cx="' + (cx - 40) + '" cy="' + (H - 104) + '" r="9"/><circle cx="' + (cx + 40) + '" cy="' + (H - 104) + '" r="9"/><circle cx="' + cx + '" cy="' + (H - 108) + '" r="13"/>';
+          else o += '<rect x="' + (cx - 40) + '" y="' + (H - 110) + '" width="80" height="8"/>';
+          return o;
+        }
+        case 'spire': return '<path d="M' + (cx - 15) + ' ' + H + 'L' + (cx - 12) + ' ' + (H - 70) + 'L' + (cx - 8) + ' ' + (H - 120) + 'L' + (cx - 5) + ' ' + (H - 160) + 'L' + (cx - 1) + ' ' + (H - 208) + 'L' + (cx + 1) + ' ' + (H - 208) + 'L' + (cx + 5) + ' ' + (H - 160) + 'L' + (cx + 8) + ' ' + (H - 120) + 'L' + (cx + 12) + ' ' + (H - 70) + 'L' + (cx + 15) + ' ' + H + 'Z"/><rect x="' + (cx - 60) + '" y="' + (H - 54) + '" width="30" height="54"/><rect x="' + (cx + 34) + '" y="' + (H - 78) + '" width="26" height="78"/>';
+        case 'domes': return '<rect x="' + (cx - 70) + '" y="' + (H - 40) + '" width="140" height="40"/><path d="M' + (cx - 34) + ' ' + (H - 40) + 'A34 34 0 0 1 ' + (cx + 34) + ' ' + (H - 40) + 'Z"/><path d="M' + (cx - 62) + ' ' + (H - 40) + 'A16 16 0 0 1 ' + (cx - 30) + ' ' + (H - 40) + 'Z"/><path d="M' + (cx + 30) + ' ' + (H - 40) + 'A16 16 0 0 1 ' + (cx + 62) + ' ' + (H - 40) + 'Z"/>' +
+          [-88, 88].map(function (d) { return '<rect x="' + (cx + d - 4) + '" y="' + (H - 120) + '" width="8" height="120"/><rect x="' + (cx + d - 7) + '" y="' + (H - 100) + '" width="14" height="5"/><path d="M' + (cx + d - 4) + ' ' + (H - 120) + 'L' + (cx + d) + ' ' + (H - 132) + 'L' + (cx + d + 4) + ' ' + (H - 120) + 'Z"/>'; }).join('') + '<rect x="' + (cx - 1) + '" y="' + (H - 92) + '" width="2" height="18"/>';
+        case 'sphere': return '<circle cx="' + (cx - 84) + '" cy="' + (H - 46) + '" r="46"/><rect x="' + (cx + 34) + '" y="' + (H - 175) + '" width="6" height="175"/><ellipse cx="' + (cx + 37) + '" cy="' + (H - 128) + '" rx="26" ry="6"/><rect x="' + (cx + 29) + '" y="' + (H - 138) + '" width="16" height="10" rx="3"/><rect x="' + (cx + 36) + '" y="' + (H - 192) + '" width="2" height="20"/>';
+        case 'spires': return [0, 1, 2, 3].map(function (i) { var x = cx - 54 + i * 36, h = [150, 178, 166, 140][i];
+          return '<path d="M' + (x - 11) + ' ' + H + 'L' + (x - 8) + ' ' + (H - h + 30) + 'L' + (x - 2) + ' ' + (H - h + 14) + 'L' + x + ' ' + (H - h) + 'L' + (x + 2) + ' ' + (H - h + 14) + 'L' + (x + 8) + ' ' + (H - h + 30) + 'L' + (x + 11) + ' ' + H + 'Z"/>'; }).join('') + '<rect x="' + (cx - 70) + '" y="' + (H - 36) + '" width="140" height="36"/>';
+        case 'tower': return '<path d="M' + (cx - 36) + ' ' + H + 'L' + (cx - 5) + ' ' + (H - 120) + 'L' + (cx - 2) + ' ' + (H - 196) + 'L' + (cx + 2) + ' ' + (H - 196) + 'L' + (cx + 5) + ' ' + (H - 120) + 'L' + (cx + 36) + ' ' + H + 'Z"/><rect x="' + (cx - 14) + '" y="' + (H - 118) + '" width="28" height="7"/><rect x="' + (cx - 8) + '" y="' + (H - 150) + '" width="16" height="5"/>';
+        case 'duomo': return '<path d="M' + (cx - 62) + ' ' + H + 'V' + (H - 66) + 'L' + cx + ' ' + (H - 98) + 'L' + (cx + 62) + ' ' + (H - 66) + 'V' + H + 'Z"/>' +
+          [-62, -46, -30, -14, 14, 30, 46, 62].map(function (d) { return '<path d="M' + (cx + d - 3) + ' ' + (H - 60) + 'L' + (cx + d) + ' ' + (H - 128 + Math.abs(d) * .3) + 'L' + (cx + d + 3) + ' ' + (H - 60) + 'Z"/>'; }).join('') + '<path d="M' + (cx - 5) + ' ' + (H - 90) + 'L' + cx + ' ' + (H - 156) + 'L' + (cx + 5) + ' ' + (H - 90) + 'Z"/>';
+        case 'clock': return '<rect x="' + (cx - 64) + '" y="' + (H - 60) + '" width="128" height="60"/><rect x="' + (cx - 22) + '" y="' + (H - 128) + '" width="44" height="70"/><rect x="' + (cx - 16) + '" y="' + (H - 156) + '" width="32" height="30"/><path d="M' + (cx - 12) + ' ' + (H - 156) + 'L' + cx + ' ' + (H - 186) + 'L' + (cx + 12) + ' ' + (H - 156) + 'Z"/>';
+        case 'glass': return [[-70, 80], [-38, 130], [-6, 168], [26, 110], [58, 140]].map(function (q, i) { return '<rect x="' + (cx + q[0]) + '" y="' + (H - q[1]) + '" width="26" height="' + q[1] + '"/>' + (i === 2 ? '<path d="M' + (cx - 6) + ' ' + (H - 168) + 'L' + (cx + 7) + ' ' + (H - 190) + 'L' + (cx + 20) + ' ' + (H - 168) + 'Z"/>' : ''); }).join('');
+        case 'modern': return [0, 1].map(function (i) { var x = cx - 40 + i * 86, y = H - 120 + i * 18;
+          return '<rect x="' + (x - 2) + '" y="' + y + '" width="4" height="' + (H - y) + '"/><g stroke="#0a111c" stroke-width="3" stroke-linecap="round"><path d="M' + x + ' ' + y + 'L' + x + ' ' + (y - 54) + 'M' + x + ' ' + y + 'L' + (x - 47) + ' ' + (y + 27) + 'M' + x + ' ' + y + 'L' + (x + 47) + ' ' + (y + 27) + '"/></g>'; }).join('') + '<rect x="' + (cx - 110) + '" y="' + (H - 34) + '" width="80" height="34"/>';
+        case 'dome': return '<rect x="' + (cx - 76) + '" y="' + (H - 46) + '" width="152" height="46"/><rect x="' + (cx - 36) + '" y="' + (H - 74) + '" width="72" height="30"/><path d="M' + (cx - 22) + ' ' + (H - 74) + 'A22 22 0 0 1 ' + (cx + 22) + ' ' + (H - 74) + 'Z"/><rect x="' + (cx - 1.5) + '" y="' + (H - 112) + '" width="3" height="16"/>';
+        default: return '<rect x="' + (cx - 20) + '" y="' + (H - 120) + '" width="40" height="120"/><rect x="' + (cx + 26) + '" y="' + (H - 84) + '" width="34" height="84"/>';
+      }
+    }
+    function banner(ind, land, seed) {
+      var p = PAL[ind] || PAL.generic, W = 640, H = 210, r = rng(seed), id = 'bn' + (++bnId), dark = '#0a111c', mo = MOTIF[ind] || 'dots', m = '';
+      if (mo === 'hex') m = '<pattern id="' + id + 'p" width="40" height="34" patternUnits="userSpaceOnUse"><path d="M10 0h20l10 17-10 17H10L0 17z" fill="none" stroke="#fff" stroke-width="1.5"/></pattern><rect x="260" width="380" height="150" fill="url(#' + id + 'p)"/>';
+      else if (mo === 'dots') m = '<pattern id="' + id + 'p" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="12" cy="12" r="3" fill="#fff"/></pattern><rect x="260" width="380" height="150" fill="url(#' + id + 'p)"/>';
+      else if (mo === 'plus') m = '<pattern id="' + id + 'p" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M18 10v16M10 18h16" stroke="#fff" stroke-width="3" fill="none"/></pattern><rect x="260" width="380" height="150" fill="url(#' + id + 'p)"/>';
+      else if (mo === 'rings2') m = '<pattern id="' + id + 'p" width="38" height="38" patternUnits="userSpaceOnUse"><circle cx="19" cy="19" r="10" fill="none" stroke="#fff" stroke-width="2"/></pattern><rect x="260" width="380" height="150" fill="url(#' + id + 'p)"/>';
+      else if (mo === 'rings') for (var k = 1; k < 7; k++) m += '<circle cx="480" cy="165" r="' + (k * 34) + '" fill="none" stroke="#fff" stroke-width="1.5"/>';
+      else if (mo === 'gears') m = '<circle cx="540" cy="58" r="46" fill="none" stroke="#fff" stroke-width="12" stroke-dasharray="7 7"/><circle cx="540" cy="58" r="28" fill="none" stroke="#fff" stroke-width="3"/><circle cx="460" cy="112" r="28" fill="none" stroke="#fff" stroke-width="9" stroke-dasharray="5 5"/>';
+      else if (mo === 'circuit') { for (var c = 0; c < 9; c++) { var x0 = 300 + r() * 320, y0 = 10 + r() * 120, x1 = x0 + 20 + r() * 50, y1 = y0 + (r() < .5 ? -1 : 1) * (14 + r() * 36); m += '<path d="M' + Math.round(x0) + ' ' + Math.round(y0) + 'H' + Math.round(x1) + 'V' + Math.round(y1) + 'h28" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="' + Math.round(x0) + '" cy="' + Math.round(y0) + '" r="3.5" fill="#fff"/>'; } }
+      var o = '<svg class="bn" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs>' +
+        '<linearGradient id="' + id + 'g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + p[0] + '"/><stop offset="1" stop-color="' + p[1] + '"/></linearGradient>' +
+        '<linearGradient id="' + id + 'f" x1="0" y1="0" x2="1" y2="0"><stop offset=".25" stop-color="#000"/><stop offset=".7" stop-color="#fff"/></linearGradient>' +
+        '<mask id="' + id + 'm"><rect width="' + W + '" height="' + H + '" fill="url(#' + id + 'f)"/></mask></defs>' +
+        '<rect width="' + W + '" height="' + H + '" fill="url(#' + id + 'g)"/>' +
+        '<circle cx="480" cy="165" r="96" fill="' + p[2] + '" opacity=".2"/><circle cx="480" cy="165" r="50" fill="' + p[2] + '" opacity=".32"/>' +
+        '<g mask="url(#' + id + 'm)" opacity=".2">' + m + '</g><g fill="' + dark + '" opacity=".92">';
+      for (var x = -10; x < W;) { var w = 22 + r() * 30, h = 22 + r() * 54; if (x > 340 && x < 600 && land !== 'generic') h *= .5; o += '<rect x="' + Math.round(x) + '" y="' + Math.round(H - h) + '" width="' + Math.round(w + 1) + '" height="' + Math.round(h) + '"/>'; x += w; }
+      return o + landmark(land, 480, H) + '</g></svg>';
+    }
+
+    // ----- the three parts of an expo, each with its own look -----
+    var STAGES = [
+      { name: 'Before the expo', sub: 'Weeks before', curtain: '#0b3558', line: function () { return 'Two weeks out. The diary is still empty.'; },
+        scene: function () { return '<span>14 days to go</span><span>' + esc(D.city || 'Your desk') + '</span>'; } },
+      { name: 'During the expo', sub: 'On the floor', curtain: '#0a0e14', line: function () { return esc(stand()) + '. The hall is full and your first client is here.'; },
+        scene: function () { return '<span class="live">Day 1 · 11:30</span><span>' + esc(stand()) + '</span>'; } },
+      { name: 'After the expo', sub: 'Back at the office', curtain: '#b8420f', line: function () { return 'The stand is packed away. The leads are not lost.'; },
+        scene: function () { return '<span class="done-tag"><i class="ph-fill ph-check-circle"></i>2 days after the show</span><span>Back at the office</span>'; } }
+    ];
+
     var STEPS = [
-      { tab: 'Invite', title: function () { return 'A personal invitation, from you'; },
+      { stage: 0, tab: 'Invite', title: function () { return 'A personal invitation, from you'; },
         was: 'In the last weeks before a show, invitations go out one by one, and the replies scatter across email and WhatsApp.',
         now: function () { return 'Each client receives a personal invitation from ' + D.company + (/s$/i.test(D.company) ? "'" : "'s") + ' own mailbox, with your stand and a link to choose a time.'; },
         screen: function () {
-          return '<div class="ms"><div class="ms-bar"><i></i><i></i><i></i></div><div class="ms-body">' +
-            '<div class="ms-head"><b>Meet ' + esc(D.company) + ' at ' + esc(D.expo) + '</b><span>From ' + esc(D.company) + ' · To Priya Menon</span></div>' +
-            '<p>Dear Priya,</p><p>We will be at <b>' + esc(where()) + '</b>, ' + esc(D.dates) + ', ' + esc(stand()) + '. We would value a short conversation with you there.</p>' +
-            '<p>Please choose a time that suits you:</p><span class="go">Choose a time</span></div></div>';
+          var ini = (D.company.match(/[A-Za-z0-9]/g) || ['E']).slice(0, 2).join('').toUpperCase();
+          var year = D.first.getFullYear(), bare = D.expo.replace(/\s*\d{4}$/, '');
+          return '<div class="inv"><div class="inv-top"><div class="inv-brand"><i class="inv-logo">' + esc(ini) + '</i><span>' + esc(D.company) + '</span></div>' +
+            '<div class="inv-certs"><i class="ph ph-seal-check"></i><i class="ph ph-seal-check"></i><i class="ph ph-seal-check"></i></div></div>' +
+            '<div class="inv-banner">' + banner(D.ind, D.land, bare) + '<div class="inv-banner-txt"><small>You are invited to</small><strong>' + esc(bare) + ' ' + year + '</strong><span>' + esc(D.city) + ' · ' + esc(D.dates) + '</span></div></div>' +
+            '<div class="inv-body"><p>Dear Priya,</p><p>' + esc(D.company) + ' will be at ' + esc(bare) + (D.city ? ' in ' + esc(D.city) : '') + '. We would value a short conversation with you at our stand.</p>' +
+            '<div class="inv-facts"><div><small>Dates</small><b>' + esc(D.dates) + '</b></div><div><small>' + (D.venue ? 'Venue' : 'City') + '</small><b>' + esc(D.venue || D.city || 'To be confirmed') + '</b></div><div><small>Our stand</small><b>' + esc(stand()) + '</b></div></div>' +
+            '<span class="go">Choose a time</span><p class="inv-note">Pick a slot that suits you. Taken slots disappear for everyone else.</p>' +
+            '<div class="inv-sign">Team ' + esc(D.company) + '</div></div></div>';
         } },
-      { tab: 'Booking', title: function () { return 'Your client picks a time'; },
+      { stage: 0, tab: 'Booking', title: function () { return 'Your client picks a time'; },
         was: 'Times get agreed in long threads, and now and then two people end up with the same slot.',
         now: 'Your client chooses a time in two clicks. Once it is taken, it disappears for everyone else.',
         screen: function () {
@@ -1027,7 +1165,7 @@
             '<div class="ms-slots">' + slots.map(function (t, i) { return '<span' + (i === 1 || i === 6 ? ' class="taken"' : '') + (i === 3 ? ' data-pick' : '') + '>' + t + '</span>'; }).join('') + '</div></div></div>';
         },
         after: function () { var p = panel.querySelector('[data-pick]'); if (p) { p.className = 'pick'; p.innerHTML = '11:30<small>Priya Menon</small>'; } } },
-      { tab: 'At the booth', title: function () { return 'A short voice note, nothing more'; },
+      { stage: 1, tab: 'Voice note', title: function () { return 'A short voice note, nothing more'; },
         was: 'Meetings run back to back, and there is rarely a moment to write anything down.',
         now: 'After each conversation, a short voice note is enough, even when the hall has no signal.',
         screen: function () {
@@ -1035,7 +1173,7 @@
           return '<div class="ms"><div class="ms-body"><div class="ms-note"><span class="mic"><i class="ph-fill ph-microphone"></i></span><span class="ms-wave">' + bars + '</span><time>0:38</time></div>' +
             '<p class="ms-quote">"Priya, Sunrise Industries. Their current supplier was late twice this year. They need around 500 kg a month, and certificates by Friday. Call her next week."</p></div></div>';
         } },
-      { tab: 'Summary', title: function () { return 'A clear summary, written for you'; },
+      { stage: 1, tab: 'Summary', title: function () { return 'A clear summary, written for you'; },
         was: 'By the second day of the show, conversations start to blur together.',
         now: 'Each note becomes a clear summary: their problem, what they need, and what you agreed. Only what was said, nothing added.',
         screen: function () {
@@ -1044,7 +1182,7 @@
             '<h5>What they need</h5><ul><li>Around 500 kg every month</li><li>Quality certificates</li></ul>' +
             '<h5>Next steps</h5><ul><li>Send certificates by Friday</li><li>Call next week</li></ul></div></div></div>';
         } },
-      { tab: 'Follow-up', title: function () { return 'The follow-up, ready the same day'; },
+      { stage: 2, tab: 'Follow-up', title: function () { return 'The follow-up, ready the same day'; },
         was: 'Back at the office, follow-ups wait while the inbox fills up, and buyers move on.',
         now: 'A considered follow-up is ready the same day, for you to read, adjust and send from your own email.',
         screen: function () {
@@ -1053,7 +1191,7 @@
             '<p>Dear Priya,</p><p>Thank you for taking the time to meet us at ' + esc(D.expo) + '. You mentioned two late deliveries this year, and a need for around 500 kg a month.</p>' +
             '<p>We keep stock ready for regular monthly orders, and I will send our certificates by Friday, as promised. Would a short call next week suit you?</p></div></div>';
         } },
-      { tab: 'Closed', title: function () { return 'A conversation that carries on to an order'; },
+      { stage: 2, tab: 'Closed', title: function () { return 'A conversation that carries on to an order'; },
         was: 'Good conversations go quiet, and it is never quite clear why.',
         now: 'Every lead has a next step and a date, so nothing is left to memory.',
         screen: function () {
@@ -1068,14 +1206,19 @@
         } },
     ];
 
-    function show(i, animate) {
-      at = Math.max(0, Math.min(STEPS.length - 1, i));
-      var st = STEPS[at];
+    var stageEl = document.getElementById('tryStage'), curtain = document.getElementById('tryCurtain'), shown = -1, token = 0;
+    function render(i, animate) {
+      at = i;
+      var st = STEPS[at], sg = st.stage;
       var txt = function (x) { return typeof x === 'function' ? x() : x; };
-      stepsEl.innerHTML = STEPS.map(function (x, k) {
-        return '<button type="button" role="tab" data-step="' + k + '" aria-selected="' + (k === at) + '"' + (k < at ? ' class="done"' : '') + '><span>0' + (k + 1) + '</span>' + x.tab + '</button>';
+      stageEl.dataset.stage = sg;
+      stepsEl.innerHTML = STAGES.map(function (g, k) {
+        var mine = STEPS.map(function (x, n) { return { x: x, n: n }; }).filter(function (q) { return q.x.stage === k; });
+        var pct = k < sg ? 100 : k === sg ? Math.round((mine.findIndex(function (q) { return q.n === at; }) + 1) / mine.length * 100) : 0;
+        return '<div class="rail-col"><button type="button" class="rail-stage' + (k === sg ? ' on' : '') + '" role="tab" aria-selected="' + (k === sg) + '" data-stage-go="' + k + '"><span class="bar"><i style="width:' + pct + '%"></i></span><b>' + g.name + '</b><small>' + g.sub + '</small></button>' +
+          '<div class="rail-steps">' + mine.map(function (q) { return '<button type="button" data-step="' + q.n + '" aria-selected="' + (q.n === at) + '"' + (q.n < at ? ' class="done"' : '') + '>' + q.x.tab + '</button>'; }).join('') + '</div></div>';
       }).join('');
-      panel.innerHTML = '<div class="try-words"><h3>' + esc(txt(st.title)) + '</h3>' +
+      panel.innerHTML = '<div class="try-scene">' + STAGES[sg].scene() + '</div><div class="try-words"><h3>' + esc(txt(st.title)) + '</h3>' +
         '<p class="was"><b>Usually</b>' + esc(txt(st.was)) + '</p><p class="now"><b>With Expo Manager</b>' + esc(txt(st.now)) + '</p></div>' +
         '<div class="try-screen">' + st.screen() + '</div>';
       panel.classList.remove('enter'); void panel.offsetWidth; if (animate) panel.classList.add('enter');
@@ -1085,14 +1228,31 @@
       countEl.textContent = (at + 1) + ' of ' + STEPS.length;
       end.hidden = at !== STEPS.length - 1;
       document.getElementById('tryEndText').textContent = 'Would you like this for ' + D.company + ' at ' + D.expo + '?';
+      shown = sg;
+    }
+    function show(i, animate) {
+      i = Math.max(0, Math.min(STEPS.length - 1, i));
+      var sg = STEPS[i].stage, me = ++token;
+      if (animate && !calm && shown !== -1 && sg !== shown) {
+        // a new part of the expo: a curtain wipes across and the whole scene changes
+        var g = STAGES[sg];
+        curtain.style.background = g.curtain;
+        curtain.innerHTML = '<small>Part ' + (sg + 1) + ' of 3</small><strong>' + g.name + '</strong><span>' + g.line() + '</span>';
+        curtain.classList.remove('go'); void curtain.offsetWidth; curtain.classList.add('go');
+        setTimeout(function () { if (me === token) render(i, true); }, 560);
+      } else render(i, animate);
     }
     function stop() { playing = false; clearTimeout(timer); }
     function play() {
       stop(); if (calm) return;
       playing = true;
-      (function tick() { timer = setTimeout(function () { if (!playing) return; if (at < STEPS.length - 1) { show(at + 1, true); tick(); } else playing = false; }, 5200); })();
+      (function tick() { timer = setTimeout(function () { if (!playing) return; if (at < STEPS.length - 1) { show(at + 1, true); tick(); } else playing = false; }, 6200); })();
     }
-    stepsEl.addEventListener('click', function (e) { var b = e.target.closest('[data-step]'); if (b) { stop(); show(+b.dataset.step, true); } });
+    stepsEl.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-step]'), g = e.target.closest('[data-stage-go]');
+      if (b) { stop(); show(+b.dataset.step, true); }
+      else if (g) { stop(); show(STEPS.findIndex(function (x) { return x.stage === +g.dataset.stageGo; }), true); }
+    });
     prev.addEventListener('click', function () { stop(); show(at - 1, true); });
     next.addEventListener('click', function () { stop(); show(at === STEPS.length - 1 ? 0 : at + 1, true); });
     panel.addEventListener('pointerenter', stop);
@@ -1204,7 +1364,7 @@
       sform.elements.password.value = '';
       location.href = SITE + r.path + '#auth=' + r.token + '&u=' + encodeURIComponent(r.user || id);
     }).catch(function (ex) {
-      serr.textContent = SIGNIN_ERRORS[ex.message] || "Couldn't reach the server. Check your connection and try again.";
+      serr.textContent = SIGNIN_ERRORS[ex.message] || (ex instanceof TypeError ? "Couldn't reach the server. Check your connection and try again." : 'Sign-in is being updated. Please try again in a few minutes.');
       go.disabled = false; go.textContent = 'Sign in';
     });
   });
