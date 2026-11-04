@@ -100,9 +100,9 @@
   .try-stage .w { position: absolute; inset: 0; z-index: -1; opacity: 0; transition: opacity .9s ease; }
   .try-stage .w0 { background: linear-gradient(180deg, #e3f0fb, #f4f9fe 70%); }
   .try-stage .w1 { background: radial-gradient(ellipse 70% 55% at 50% -8%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 72%), #0a0e14; overflow: hidden; }
-  .try-stage .w1::after { content: ""; position: absolute; top: -20%; left: -40%; width: 55%; height: 140%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.07), transparent); animation: sweep 8s ease-in-out infinite alternate; }
+  .try-stage .w1::after { content: ""; position: absolute; top: -30%; left: -30%; width: 70%; height: 90%; background: radial-gradient(ellipse at center, rgba(255,255,255,.07), transparent 68%); animation: sweep 9s ease-in-out infinite alternate; }
   .try-stage .w2 { background: linear-gradient(180deg, #ffeedd, #fffaf4 70%); }
-  @keyframes sweep { to { transform: translateX(260%); } }
+  @keyframes sweep { to { transform: translateX(70%); } }
   :root[data-theme="dark"] .try-stage .w0 { background: linear-gradient(180deg, #10263a, #0c151d 70%); }
   :root[data-theme="dark"] .try-stage .w2 { background: linear-gradient(180deg, #2c1b10, #150f0b 70%); }
   .try-stage[data-stage="0"] .w0, .try-stage[data-stage="1"] .w1, .try-stage[data-stage="2"] .w2 { opacity: 1; }
@@ -145,6 +145,42 @@
   .try-nav .btn--ink { background: var(--accent); color: #0d1117; }
   .try-nav .btn--ink:hover { filter: brightness(1.08); }
   .try-nav, .try-nav span { color: var(--s-muted); }
+
+  /* a short looping scene: the meeting, then a quick voice note, then the minutes */
+  .clip { position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 9; background: #0b0f16; border: 1px solid #263040; box-shadow: var(--shadow); margin-bottom: 12px; }
+  .clip svg { display: block; width: 100%; height: 100%; }
+  .clip .all { animation: clAll 12s linear infinite; }
+  .clip .vis { animation: clLeave 12s linear infinite; }
+  .clip .s1 { animation: clS1 12s linear infinite; }
+  .clip .bl { animation: clBl 12s linear infinite; opacity: 0; }
+  .clip .br { animation: clBr 12s linear infinite; opacity: 0; }
+  .clip .s2 { animation: clS2 12s linear infinite; opacity: 0; }
+  .clip .s3 { animation: clS3 12s linear infinite; opacity: 0; }
+  .clip .bar { transform-box: fill-box; transform-origin: center; animation: clBar .9s ease-in-out infinite; }
+  .clip .ring { transform-box: fill-box; transform-origin: center; animation: clRing 1.6s ease-out infinite; opacity: 0; }
+  .clip .dot { animation: clDot 1s ease-in-out infinite; }
+  .clip .rec { animation: clDot 1.2s ease-in-out infinite; }
+  .clip .cap { position: absolute; left: 12px; top: 12px; display: flex; align-items: center; gap: 8px; padding: 7px 11px; border-radius: 8px; background: rgba(10,14,20,.82); color: #fff; font: 600 11.5px Geist, sans-serif; opacity: 0; }
+  .clip .cap b { font: 600 10px "Geist Mono", monospace; color: #ff8a5c; letter-spacing: .08em; }
+  .clip .cap1 { animation: clCap1 12s linear infinite; } .clip .cap2 { animation: clCap2 12s linear infinite; } .clip .cap3 { animation: clCap3 12s linear infinite; }
+  @keyframes clAll { 0% { opacity: 0; } 3%, 95% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes clLeave { 0%, 31% { transform: none; opacity: 1; } 41%, 100% { transform: translateX(-150px); opacity: 0; } }
+  @keyframes clS1 { 0%, 33% { opacity: 1; } 38%, 100% { opacity: 0; } }
+  @keyframes clBl { 0%, 1% { opacity: 0; } 3%, 13% { opacity: 1; } 15%, 100% { opacity: 0; } }
+  @keyframes clBr { 0%, 15% { opacity: 0; } 17%, 29% { opacity: 1; } 31%, 100% { opacity: 0; } }
+  @keyframes clS2 { 0%, 36% { opacity: 0; } 42%, 64% { opacity: 1; } 68%, 100% { opacity: 0; } }
+  @keyframes clS3 { 0%, 64% { opacity: 0; transform: translateY(22px); } 72%, 94% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+  @keyframes clBar { 50% { transform: scaleY(.3); } }
+  @keyframes clRing { 0% { transform: scale(.3); opacity: .8; } 100% { transform: scale(1.8); opacity: 0; } }
+  @keyframes clDot { 50% { opacity: .25; } }
+  @keyframes clCap1 { 0%, 2% { opacity: 0; } 4%, 30% { opacity: 1; } 34%, 100% { opacity: 0; } }
+  @keyframes clCap2 { 0%, 36% { opacity: 0; } 40%, 62% { opacity: 1; } 66%, 100% { opacity: 0; } }
+  @keyframes clCap3 { 0%, 68% { opacity: 0; } 72%, 94% { opacity: 1; } 98%, 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .clip *, .clip *::before { animation: none !important; }
+    .clip .vis, .clip .s1, .clip .s3, .clip .cap1, .clip .cap3 { display: none; }
+    .clip .s2, .clip .cap2 { opacity: 1; }
+  }
 
   /* the personal invitation, built from the visitor's expo: the same banner for every client of that expo */
   .inv { background: #fff; color: #1a2233; border: 1px solid #dde1e6; border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; font-size: 13.5px; line-height: 1.5; }
@@ -1170,6 +1206,39 @@
         scene: function () { return '<span class="done-tag"><i class="ph-fill ph-check-circle"></i>2 days after the show</span><span>Back at the office</span>'; } }
     ];
 
+    // ----- a short looping scene (drawn, not filmed): the meeting, a quick voice note, then the minutes -----
+    function clip() {
+      var bars = '', k;
+      for (k = 0; k < 13; k++) bars += '<rect class="bar" x="' + (356 + k * 8) + '" y="' + (112 - [10, 18, 26, 14, 30, 20, 34, 16, 28, 12, 24, 18, 10][k] / 2) + '" width="4" height="' + [10, 18, 26, 14, 30, 20, 34, 16, 28, 12, 24, 18, 10][k] + '" rx="2" fill="#ff6a33" style="animation-delay:' + (k * 0.07).toFixed(2) + 's"/>';
+      var line = function (x, y, w) { return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="6" rx="3" fill="#d8dde4"/>'; };
+      var lab = function (y, t) { return '<text x="84" y="' + y + '" font-size="8" font-weight="700" letter-spacing="1" fill="#8a93a1" font-family="Geist Mono, monospace">' + t + '</text>'; };
+      return '<div class="clip" role="img" aria-label="A short animation: two people talk at a stand, the exhibitor then records a quick voice note, and the minutes appear.">' +
+        '<svg viewBox="0 0 480 270" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs>' +
+        '<linearGradient id="clbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#182236"/><stop offset="1" stop-color="#0b0f16"/></linearGradient>' +
+        '<linearGradient id="clcone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".14"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>' +
+        '<rect width="480" height="270" fill="url(#clbg)"/><path d="M240 0L150 215H330Z" fill="url(#clcone)"/>' +
+        '<rect y="212" width="480" height="58" fill="#0f1520"/><path d="M200 212H280L330 270H150Z" fill="#162033"/>' +
+        '<g class="all">' +
+        '<rect x="46" y="50" width="388" height="162" rx="10" fill="#1a2538"/><rect x="46" y="50" width="388" height="26" rx="10" fill="#26364f"/>' +
+        '<rect x="190" y="24" width="100" height="28" rx="7" fill="#ff6a33"/><text x="240" y="43" text-anchor="middle" font-size="12" font-weight="700" fill="#0d1117" font-family="Geist, sans-serif">' + esc(stand() || 'Our stand') + '</text>' +
+        '<g class="exh"><rect x="300" y="146" width="14" height="66" rx="5" fill="#2a3652"/><rect x="320" y="146" width="14" height="66" rx="5" fill="#2a3652"/>' +
+          '<rect x="288" y="118" width="58" height="92" rx="24" fill="#f3f5f7"/><path d="M312 124l4 26 4-26z" fill="#ff6a33"/><rect x="310" y="150" width="14" height="18" rx="3" fill="#ff6a33"/>' +
+          '<circle cx="317" cy="100" r="18" fill="#c68a5e"/><path d="M299 97a18 18 0 0136 0c-9-7-27-7-36 0z" fill="#1b1410"/></g>' +
+        '<g class="vis"><rect x="154" y="146" width="14" height="66" rx="5" fill="#222d45"/><rect x="174" y="146" width="14" height="66" rx="5" fill="#222d45"/>' +
+          '<rect x="142" y="118" width="58" height="92" rx="24" fill="#3b4a6b"/><circle cx="171" cy="100" r="18" fill="#f1c9a5"/><path d="M153 100a18 18 0 0136 0c0-13-36-13-36 0z" fill="#5a3a22"/></g>' +
+        '<g class="s1"><g class="bl"><rect x="96" y="62" width="104" height="30" rx="15" fill="#fff"/><path d="M150 92l8 10 4-10z" fill="#fff"/><circle class="dot" cx="132" cy="77" r="3.5" fill="#8a93a1"/><circle class="dot" cx="148" cy="77" r="3.5" fill="#8a93a1" style="animation-delay:.2s"/><circle class="dot" cx="164" cy="77" r="3.5" fill="#8a93a1" style="animation-delay:.4s"/></g>' +
+          '<g class="br"><rect x="282" y="62" width="104" height="30" rx="15" fill="#ff6a33"/><path d="M322 92l8 10 4-10z" fill="#ff6a33"/><circle class="dot" cx="318" cy="77" r="3.5" fill="#0d1117"/><circle class="dot" cx="334" cy="77" r="3.5" fill="#0d1117" style="animation-delay:.2s"/><circle class="dot" cx="350" cy="77" r="3.5" fill="#0d1117" style="animation-delay:.4s"/></g></g>' +
+        '<g class="s2"><path d="M300 150Q326 156 336 124" stroke="#f3f5f7" stroke-width="13" stroke-linecap="round" fill="none"/><rect x="330" y="104" width="13" height="24" rx="3" fill="#0b0e13" stroke="#9aa6b8" stroke-width="2"/>' +
+          '<circle class="ring" cx="336" cy="116" r="24" fill="none" stroke="#ff6a33" stroke-width="2"/><circle class="ring" cx="336" cy="116" r="24" fill="none" stroke="#ff6a33" stroke-width="2" style="animation-delay:.8s"/>' + bars +
+          '<g><rect x="352" y="70" width="86" height="22" rx="11" fill="#0b0e13" stroke="#263040"/><circle class="rec" cx="367" cy="81" r="4" fill="#ff4d3d"/><text x="377" y="85" font-size="10" font-weight="700" fill="#fff" font-family="Geist Mono, monospace">REC 0:08</text></g></g>' +
+        '<g class="s3"><rect x="70" y="84" width="196" height="118" rx="10" fill="#fff"/><text x="84" y="106" font-size="12" font-weight="700" fill="#1a2233" font-family="Geist, sans-serif">Meeting minutes</text>' +
+          '<circle cx="246" cy="101" r="9" fill="#16a34a"/><path d="M241.5 101l3 3 5-6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+          lab(124, 'THEIR PROBLEM') + line(84, 130, 120) + lab(152, 'WHAT THEY NEED') + line(84, 158, 150) + line(84, 168, 96) + lab(190, 'NEXT STEPS') +
+          '<rect x="84" y="208" width="132" height="24" rx="12" fill="#16a34a"/><text x="150" y="224" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff" font-family="Geist, sans-serif">Follow-up drafted</text></g>' +
+        '</g></svg>' +
+        '<span class="cap cap1"><b>1</b>The meeting</span><span class="cap cap2"><b>2</b>A quick voice note</span><span class="cap cap3"><b>3</b>Minutes, ready for you</span></div>';
+    }
+
     var STEPS = [
       { stage: 0, tab: 'Invite', title: function () { return 'A personal invitation, from you'; },
         was: 'In the last weeks before a show, invitations go out one by one, and the replies scatter across email and WhatsApp.',
@@ -1201,7 +1270,7 @@
         now: 'Say what mattered in a few seconds and move on. Expo Manager does the rest, even when the hall has no signal.',
         screen: function () {
           var bars = ''; for (var i = 0; i < 26; i++) bars += '<i style="height:' + (6 + (i * 7) % 20) + 'px;animation-delay:' + (i * 0.05).toFixed(2) + 's"></i>';
-          return '<div class="ms"><div class="ms-body"><div class="ms-note"><span class="mic"><i class="ph-fill ph-microphone"></i></span><span class="ms-wave">' + bars + '</span><time>0:38</time></div>' +
+          return clip() + '<div class="ms"><div class="ms-body"><div class="ms-note"><span class="mic"><i class="ph-fill ph-microphone"></i></span><span class="ms-wave">' + bars + '</span><time>0:38</time></div>' +
             '<p class="ms-quote">"Priya, Sunrise Industries. Their current supplier was late twice this year. They need around 500 kg a month, and certificates by Friday. Call her next week."</p></div></div>';
         } },
       { stage: 1, tab: 'We do the rest', title: function () { return 'Expo Manager writes it up for you'; },
