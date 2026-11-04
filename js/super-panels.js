@@ -138,7 +138,7 @@ async function loadOutreach() {
   $("#outCount").textContent = "Loading…";
   try {
     const r = await api("superOutreach", { token: token() });
-    if (!r.ok) throw new Error(r.error === "no_outreach_tables" ? "no_tables" : r.error);
+    if (!r.ok) { const er = new Error(r.error === "no_outreach_tables" ? "no_tables" : r.error); er.detail = r.detail; throw er; }
     panels.outreach = r.outreach;
     renderOutreach();
   } catch (ex) {
@@ -146,6 +146,7 @@ async function loadOutreach() {
     $("#outCount").textContent = "";
     $("#outErr").textContent = ex.message === "no_tables" ? "The outreach tables aren't in Supabase yet. Run the latest supabase.sql."
       : ex.message === "bad_request" ? "The Apps Script is an older version. Paste the latest Code.gs and deploy a new version." : "Couldn't load the outreach. Try Refresh.";
+    if (ex.detail) $("#outErr").textContent += " Supabase said: " + String(ex.detail).slice(0, 300);
     $("#outErr").hidden = false;
   }
 }
