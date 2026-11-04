@@ -1,4 +1,4 @@
-// Expo meetings · admin: add a meeting arranged outside the booking page (by phone, email, at the booth).
+// Expo Manager · admin: add a meeting arranged outside the booking page (by phone, email, at the booth).
 // It's saved as Confirmed (or New) with the expo's slot, or any time and length; a blocked time can be turned
 // into the meeting. Loaded after admin.js; uses $, api(), esc(), state, store, curExpo(), expoRows(), rowSlots(),
 // fmtDay(), fmtRange(), load() and TOKEN_KEY.

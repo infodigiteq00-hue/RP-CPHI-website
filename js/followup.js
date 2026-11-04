@@ -1,4 +1,4 @@
-// Expo meetings · admin: the follow-up email for a completed meeting.
+// Expo Manager · admin: the follow-up email for a completed meeting.
 // The server writes a draft from the minutes. The team reviews it here, opens it in their own email
 // (Gmail or their email app, with the client's address, subject and message filled in), sends it
 // from there, and marks it as sent. This page never sends email itself.

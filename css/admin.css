@@ -500,6 +500,7 @@ tr.is-cancelled td:not(:last-child) { opacity: .5; }
 .netbar:not(.is-offline) { background: #f2f4f7; border-color: var(--line); color: var(--text); }
 .netbar__warn { color: var(--red); font-weight: 600; }
 .netbar .link { font-size: 14px; }
+.netbar.netbar--draft { background: #fffaeb; border-color: #fedf89; color: #7a2e0e; }
 
 /* accept, reschedule or reject: js/decide.js */
 .dc-email { margin-top: 16px; }

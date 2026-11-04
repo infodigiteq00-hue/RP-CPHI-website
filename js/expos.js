@@ -1,4 +1,4 @@
-// Expo meetings · admin: expo settings (the "Expo settings" tab).
+// Expo Manager · admin: expo settings (the "Expo settings" tab).
 // Edits a copy of the picked expo's settings (`draft`) and saves it with the "saveExpo" action.
 // Loaded after admin.js; uses api(), esc(), state, store, curExpo(), expoRows(), renderExpoSelect(),
 // renderFilters(), fmtRange() and pickExpo().

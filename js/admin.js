@@ -1,4 +1,4 @@
-// Expo meetings · a company's admin dashboard. Everything shown is for the expo picked at the top.
+// Expo Manager · a company's admin dashboard. Everything shown is for the expo picked at the top.
 // The company comes from ?c= (a /xyz/admin link sends you there); none means RP Industries.
 // The owners' dashboard (super.html) opens it signed in, with #auth=<token>.
 
@@ -151,12 +151,12 @@ if (!isRP()) {
   } catch {}
 })();
 
-// opened from the owners' dashboard: #auth=<token>
+// opened from the owners' dashboard (#auth=<token>) or signed in on the website (#auth=<token>&u=<who>)
 (() => {
-  const m = /^#auth=([\w.=-]+)/.exec(location.hash);
+  const m = /^#auth=([\w.=-]+)(?:&u=([^&]*))?/.exec(location.hash);
   if (!m) return;
   store.set(TOKEN_KEY, m[1]);
-  store.set(USER_KEY, "Owner");
+  store.set(USER_KEY, m[2] ? decodeURIComponent(m[2]) : "Owner");
   history.replaceState(null, "", `${location.pathname}${location.search}#requests`);
 })();
 
@@ -237,6 +237,7 @@ async function load() {
     renderFilters();
     if (!state.expos.length && state.view !== "settings") showView("settings"); // a new company: set up its first expo
     else render();
+    if (typeof showDraftBar === "function") showDraftBar(); // js/minutes.js: voice notes kept here but not saved
   } catch (ex) {
     if (ex.message === "auth") return;
     $("#loadErr").textContent = "Couldn't load requests. Try Refresh.";

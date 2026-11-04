@@ -1,4 +1,4 @@
-// Expo meetings · admin: mark meetings complete, record a voice note, show the minutes.
+// Expo Manager · admin: mark meetings complete, record a voice note, show the minutes.
 // Loaded after admin.js and uses its api(), esc(), state, store, fmtDay() and slotTime().
 
 const MAX_REC_SECONDS = 10 * 60;
@@ -12,7 +12,7 @@ const COMPLETE_ERRORS = {
 };
 const OUTCOMES = { "Very positive": "very-positive", Positive: "positive", Neutral: "neutral", Negative: "negative", Unclear: "unclear" };
 
-const voice = { recorder: null, stream: null, chunks: [], blob: null, url: "", timer: 0, started: 0 };
+const voice = { recorder: null, stream: null, chunks: [], blob: null, url: "", timer: 0, started: 0, saving: Promise.resolve(), recovered: false };
 let current = null; // the meeting the dialogs are about
 let currentRecord = null;
 
@@ -25,7 +25,7 @@ async function openComplete(id) {
   if (!current) return;
   resetVoice();
   $("#completeWho").textContent = meetingLine(current);
-  $("#notesInput").value = "";
+  $("#notesInput").value = window.Drafts.notesGet(id); // typed here before but not saved (js/drafts.js)
   $("#notesInput").readOnly = false;
   $("#saveCompleteBtn").disabled = false;
   $("#voiceNote").hidden = true; // left over from the last meeting otherwise
@@ -34,6 +34,7 @@ async function openComplete(id) {
   $("#skipNotesBtn").hidden = current.status === "Completed"; // already complete: this is "edit notes"
   $("#completeTitle").textContent = current.status === "Completed" ? "Meeting notes" : "Mark meeting complete";
   $("#completeDialog").showModal();
+  restoreVoice(id);
   if (current.minutes && current.minutes !== "None") {
     // editing, or notes taken during the meeting ("Draft"): start from what was saved.
     // The box is locked until they arrive, so the saved notes never land on top of typing.
@@ -48,9 +49,11 @@ async function openComplete(id) {
       if (r.ok && r.record) {
         const saved = r.record.notes || "";
         const typed = box.value.trim();
-        box.value = typed && !saved.includes(typed) ? (saved ? `${saved}\n\n${typed}` : typed) : saved || typed;
+        // typed may be an unsaved edit of the saved notes (a draft): then it already holds them
+        if (typed && saved && typed.includes(saved.trim())) box.value = typed;
+        else box.value = typed && !saved.includes(typed) ? (saved ? `${saved}\n\n${typed}` : typed) : saved || typed;
         if (r.record.notes) $("#skipNotesBtn").hidden = true; // would throw away the notes
-        if (r.record.hasAudio) {
+        if (r.record.hasAudio && !voice.recovered) {
           $("#voiceNote").textContent = "A voice note is already saved. Record a new one only to replace it.";
           $("#voiceNote").hidden = false;
         }
@@ -89,7 +92,12 @@ document.querySelectorAll(".modal").forEach((d) => {
   d.addEventListener("click", (e) => { if (e.target === d && !d.classList.contains("is-busy")) d.close(); });
   d.addEventListener("cancel", (e) => { if (d.classList.contains("is-busy")) e.preventDefault(); });
 });
-$("#completeDialog").addEventListener("close", () => { stopRecording(true); resetVoice(); });
+// closing doesn't lose a recording: what was recorded is already kept on the device (js/drafts.js)
+$("#completeDialog").addEventListener("close", () => {
+  stopRecording(true);
+  resetVoice();
+  voice.saving.then(showDraftBar);
+});
 
 // ---------- voice note ----------
 function pickMime() {
@@ -100,7 +108,10 @@ function pickMime() {
 $("#recBtn").addEventListener("click", startRecording);
 $("#reRecBtn").addEventListener("click", startRecording);
 $("#stopBtn").addEventListener("click", () => stopRecording(false));
-$("#removeVoiceBtn").addEventListener("click", resetVoice);
+$("#removeVoiceBtn").addEventListener("click", () => {
+  resetVoice();
+  if (current) { const id = current.id; voice.saving = voice.saving.then(() => window.Drafts.clearVoice(id)).catch(() => {}); }
+});
 
 async function startRecording() {
   $("#completeErr").hidden = true;
@@ -116,7 +127,16 @@ async function startRecording() {
   const mime = pickMime();
   voice.recorder = new MediaRecorder(voice.stream, { ...(mime ? { mimeType: mime } : {}), audioBitsPerSecond: 32000 });
   voice.chunks = [];
-  voice.recorder.ondataavailable = (e) => { if (e.data.size) voice.chunks.push(e.data); };
+  // every second of the recording is also kept on the device, in order, so a crash loses at most a second
+  const rid = current.id;
+  let seq = 0;
+  voice.saving = voice.saving.then(() => window.Drafts.voiceStart(rid, voice.recorder.mimeType || mime)).catch(() => {});
+  voice.recorder.ondataavailable = (e) => {
+    if (!e.data.size) return;
+    voice.chunks.push(e.data);
+    const n = seq++, secs = Math.round((Date.now() - voice.started) / 1000);
+    voice.saving = voice.saving.then(() => window.Drafts.voiceChunk(rid, n, e.data, secs)).catch(() => {});
+  };
   voice.recorder.onstop = () => {
     if (voice.discard) { voice.discard = false; return; }
     setVoiceBlob(new Blob(voice.chunks, { type: voice.recorder.mimeType || mime || "audio/webm" }));
@@ -151,6 +171,35 @@ $("#audioFile").addEventListener("change", (e) => {
   if (!f.type.startsWith("audio/") && !/^video\/(webm|mp4)$/.test(f.type)) return voiceMessage("That file isn't an audio recording.");
   if (f.size > MAX_AUDIO_MB * 1024 * 1024) return voiceMessage(`That recording is over ${MAX_AUDIO_MB} MB. Use a shorter one.`);
   setVoiceBlob(f);
+  const id = current.id;
+  voice.saving = voice.saving.then(() => window.Drafts.voiceFile(id, f)).catch(() => {});
+});
+
+// a voice note kept on this device for this meeting but never saved (tab closed, crash): put it back
+async function restoreVoice(id) {
+  await voice.saving;
+  const d = await window.Drafts.voiceGet(id).catch(() => null);
+  const recording = voice.recorder && voice.recorder.state === "recording";
+  if (!d || !current || current.id !== id || !$("#completeDialog").open || voice.blob || recording) return;
+  setVoiceBlob(d.blob);
+  voice.recovered = true;
+  const at = new Date(d.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  voiceMessage(`Recovered a voice note ${d.uploaded ? "added" : "recorded"} at ${at} that wasn't saved. Save to keep it, or remove it.`);
+}
+
+// meetings with a voice note kept on this device but not saved, so nobody forgets them
+async function showDraftBar() {
+  const bar = $("#draftBar");
+  if (!bar) return;
+  const list = (await window.Drafts.voiceList().catch(() => [])).map((m) => findRow(m.id)).filter(Boolean);
+  bar.hidden = !list.length;
+  bar.innerHTML = list.length ? `<p>${list.length === 1 ? "A voice note hasn't been saved" : `${list.length} voice notes haven't been saved`}: ` +
+    list.map((r) => `<button class="link" type="button" data-draft="${esc(r.id)}">${esc(r.name)}</button>`).join(", ") +
+    `. Open ${list.length === 1 ? "it" : "each one"} and save.</p>` : "";
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-draft]");
+  if (b) openComplete(b.dataset.draft);
 });
 
 function setVoiceBlob(blob) {
@@ -167,6 +216,7 @@ function resetVoice(keepStream) {
   if (voice.url) URL.revokeObjectURL(voice.url);
   voice.blob = null;
   voice.url = "";
+  voice.recovered = false;
   $("#voicePlayer").removeAttribute("src");
   showVoice("idle");
 }
@@ -187,6 +237,14 @@ const toBase64 = (blob) => new Promise((resolve, reject) => {
   r.onload = () => resolve(String(r.result).split(",")[1] || "");
   r.onerror = () => reject(r.error);
   r.readAsDataURL(blob);
+});
+
+// typed notes are kept on the device as they're typed, so closing the dialog or the tab doesn't lose them
+let notesTimer = 0;
+$("#notesInput").addEventListener("input", () => {
+  clearTimeout(notesTimer);
+  const id = current && current.id, text = $("#notesInput").value;
+  if (id) notesTimer = setTimeout(() => window.Drafts.notesSet(id, text), 400);
 });
 
 // ---------- save ----------
@@ -213,6 +271,10 @@ async function saveCompletion(withNotes) {
     if (voice.blob) payload.audio = { data: await toBase64(voice.blob), mime: voice.blob.type || "audio/webm" };
     const r = await api("complete", payload);
     if (!r.ok) throw new Error(r.error);
+    // saved (or kept to upload): the copies kept while recording and typing aren't needed
+    clearTimeout(notesTimer);
+    const savedId = current.id;
+    voice.saving = voice.saving.then(() => window.Drafts.clear(savedId)).then(showDraftBar).catch(() => {});
     current.status = "Completed";
     current.minutes = r.minutes;
     renderFilters();

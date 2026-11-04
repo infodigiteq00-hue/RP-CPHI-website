@@ -1,4 +1,4 @@
-// Expo meetings · a company's branding on any page: its colours, logo, font and name.
+// Expo Manager · a company's branding on any page: its colours, logo, font and name.
 // Used by the booking page, the admin page and the owners' dashboard (for previews).
 // Colours are adjusted where needed so text stays readable: white on the main colour, the accent on white,
 // and the highlight on the dark banner.

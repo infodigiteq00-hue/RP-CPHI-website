@@ -1,4 +1,4 @@
-// Expo meetings · admin: working without a connection (expo halls often have none).
+// Expo Manager · admin: working without a connection (expo halls often have none).
 //
 // - The page itself loads from this device (sw.js keeps a copy of everything it loaded).
 // - The last list of meetings, and the notes and follow-ups opened, are kept on the device (IndexedDB),
@@ -8,6 +8,9 @@
 //   (with its voice note) and follow-up edits. When the connection is back they're uploaded in the same order;
 //   after a meeting marked complete is uploaded, its minutes and follow-up draft are written, and an accepted,
 //   moved or rejected meeting's email goes to the visitor then (sent by the Apps Script).
+// - Uploading also happens with the dashboard closed where the browser allows it (Background Sync: Chrome, Edge,
+//   Android): sw.js does the same upload, using the sign-in kept here for it. Safari and Firefox upload when the
+//   dashboard is next open. A lock keeps the page and sw.js from uploading the same change twice.
 // - Needs the internet: signing in, writing minutes, handwriting conversion, banners and expo settings.
 //
 // Loaded before admin.js; admin.js's api() sends everything through Offline.api(). Uses admin.js's apiRaw,
@@ -34,6 +37,7 @@ window.Offline = (() => {
   let flushing = null;
   let cachedAt = "";
   let problems = [];
+  let authSaved = "";
 
   // ---------- storage on the device ----------
   let dbp = null;
@@ -68,6 +72,11 @@ window.Offline = (() => {
   // ---------- the API, offline or not ----------
   async function api(action, data) {
     if (!enabled) return apiRaw(action, data);
+    if (data && data.token && data.token !== authSaved) {
+      // sw.js can't read localStorage: it uploads with the sign-in kept here
+      authSaved = data.token;
+      kvSet("auth", { token: data.token, api: API }).catch(() => {});
+    }
     try {
       // earlier offline changes go first, so the server sees everything in the order it happened
       if (action === "list" && pending) await flush();
@@ -126,6 +135,7 @@ window.Offline = (() => {
     item.label = describe(action, item.data);
     await outAdd(item);
     pending++;
+    requestSync();
     const out = await applyHere(action, item);
     await snapshot();
     render();
@@ -226,12 +236,23 @@ window.Offline = (() => {
   }
 
   // ---------- uploading ----------
+  // asks the browser to run sw.js's upload when the connection is back, even if this page is closed by then
+  function requestSync() {
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.ready.then((r) => r.sync && r.sync.register("upload-outbox")).catch(() => {});
+  }
+
   function flush() {
     if (!flushing) flushing = upload().finally(() => { flushing = null; render(); });
     return flushing;
   }
 
-  async function upload() {
+  // one upload at a time across this page, other tabs and sw.js
+  function upload() {
+    return navigator.locks ? navigator.locks.request("expo-meetings-upload", uploadNow) : uploadNow();
+  }
+
+  async function uploadNow() {
     if (!enabled) return false;
     const items = await outbox();
     pending = items.length;
@@ -284,6 +305,7 @@ window.Offline = (() => {
     ["records", "followups"].forEach((k) => kvGet(k).then((m) => {
       if (m && m[temp]) { m[real] = m[temp]; delete m[temp]; kvSet(k, m); }
     }).catch(() => {}));
+    if (window.Drafts) window.Drafts.move(temp, real).catch(() => {}); // a voice note or notes not saved yet (js/drafts.js)
     try {
       const ink = localStorage.getItem(`rp_ink_${temp}`); // handwriting pad (js/ink.js)
       if (ink) { localStorage.setItem(`rp_ink_${real}`, ink); localStorage.removeItem(`rp_ink_${temp}`); }
@@ -344,7 +366,8 @@ window.Offline = (() => {
   // signing out: the meetings stored on this device go; changes not yet uploaded stay, for the next sign-in
   async function forget() {
     if (!enabled) return;
-    await Promise.all(["list", "records", "followups"].map((k) => kvDel(k).catch(() => {})));
+    await Promise.all(["list", "records", "followups", "auth"].map((k) => kvDel(k).catch(() => {})));
+    authSaved = "";
     cachedAt = "";
   }
 
@@ -359,9 +382,31 @@ window.Offline = (() => {
     caches.open("expo-meetings-v1").then((c) => Promise.allSettled(urls.filter((u) => /^https?:/.test(u)).map((u) => c.add(u)))).catch(() => {});
   }
 
+  // what sw.js did while this page was closed: problems to show, and meetings added offline that now have real IDs
+  async function afterBackground() {
+    const p = await kvGet("problems").catch(() => null);
+    if (p && p.length) {
+      problems.push(...p.map((x) => ({ label: x.label, why: x.error === "mail" ? `status saved, but the visitor's email could not be sent: ${x.detail}`
+        : PROBLEMS[x.error] || x.detail || x.error || "unknown error" })));
+      await kvDel("problems").catch(() => {});
+    }
+    const ids = (await kvGet("ids").catch(() => null)) || {};
+    Object.keys(ids).forEach((temp) => moveLocal(temp, ids[temp]));
+    render();
+  }
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("message", (e) => {
+      if (!e.data || e.data.type !== "outbox-uploaded") return;
+      waiting().then(afterBackground).then(() => { if (store.get(TOKEN_KEY) && !$("#appView").hidden) load(); });
+    });
+  }
+
   if (enabled) {
     db().catch(() => { enabled = false; });
-    waiting().then(render);
+    // after admin.js has run (it defines COMPANY_ID, load and the rest)
+    document.addEventListener("DOMContentLoaded", () => {
+      waiting().then((n) => { if (n) requestSync(); return afterBackground(); }).catch(() => render());
+    });
   }
   window.addEventListener("load", keepPage);
 

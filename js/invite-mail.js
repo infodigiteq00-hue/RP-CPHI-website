@@ -1,4 +1,4 @@
-// Expo meetings · the invite email for an expo, built from a company's branding and the expo's settings: an HTML
+// Expo Manager · the invite email for an expo, built from a company's branding and the expo's settings: an HTML
 // email (tables and inline styles, so it looks right in Gmail and Outlook) and a plain-text version. Every fact in
 // it comes from the settings; nothing is made up. Shared by the admin page (Expo settings) and the owners' mailer;
 // uses esc() and window.Brand.

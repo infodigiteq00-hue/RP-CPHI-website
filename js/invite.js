@@ -1,4 +1,4 @@
-// Expo meetings · admin: the invite email for an expo (in the "Expo settings" tab), ready to paste into a mailing
+// Expo Manager · admin: the invite email for an expo (in the "Expo settings" tab), ready to paste into a mailing
 // tool. The email itself is built by js/invite-mail.js. Loaded after admin.js and expos.js; uses $, esc(), state,
 // draft, isRP(), makeBanner() and window.Brand.
 

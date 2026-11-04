@@ -4,20 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>Companies · Expo meetings</title>
+  <title>Owners · Expo Manager</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="css/style.css?v=20261027-11">
   <link rel="stylesheet" href="css/admin.css?v=20261027-11">
-  <link rel="stylesheet" href="css/super.css?v=20261103-1">
+  <link rel="stylesheet" href="css/super.css?v=20261104-1">
 </head>
 <body class="admin super">
 
   <!-- LOGIN -->
   <main class="login" id="loginView">
     <form class="login__box" id="loginForm" novalidate>
-      <p class="super__mark">Expo meetings</p>
+      <p class="super__mark">Expo Manager</p>
       <h1>Owners' login</h1>
       <p class="muted">Companies, seats and branding</p>
       <div class="field">
@@ -36,7 +36,7 @@
   <div id="appView" hidden>
     <header class="header">
       <div class="wrap header__in">
-        <p class="super__mark">Expo meetings <span class="muted">· Owners</span></p>
+        <p class="super__mark">Expo Manager <span class="muted">· Owners</span></p>
         <div class="header__user">
           <span class="muted" id="userName"></span>
           <button class="link" type="button" id="logoutBtn">Sign out</button>
@@ -45,6 +45,12 @@
     </header>
 
     <main class="wrap results">
+      <nav class="tabs super-tabs" aria-label="Sections">
+        <button class="tab" type="button" data-tab="companies" aria-selected="true">Companies</button>
+        <button class="tab" type="button" data-tab="leads" aria-selected="false">Leads</button>
+        <button class="tab" type="button" data-tab="outreach" aria-selected="false">Outreach</button>
+      </nav>
+
       <!-- the companies -->
       <div id="listView">
         <div class="results__head">
@@ -86,12 +92,134 @@
       <!-- review and edit a company -->
       <div id="editView" hidden></div>
 
+      <!-- demo requests from the website -->
+      <div id="leadsView" hidden>
+        <div class="results__head">
+          <div>
+            <h1>Leads</h1>
+            <p class="muted" id="leadsCount"></p>
+          </div>
+          <div class="results__actions">
+            <select id="leadsFilter" class="filter-select" aria-label="Show leads with status"></select>
+            <button class="btn btn--outline btn--sm" type="button" id="leadsRefresh">Refresh</button>
+          </div>
+        </div>
+        <p class="err" id="leadsErr" hidden></p>
+        <div class="kpis" id="leadsSummary"></div>
+        <details class="playbook">
+          <summary>How we handle a lead</summary>
+          <ol>
+            <li><b>Hot</b> (interest 8 or more, or their expo is within 3 weeks): call or WhatsApp within 2 hours and offer a demo today or tomorrow. Invites need about 2 weeks to work.</li>
+            <li><b>Warm</b> (interest 5 to 7): email within 24 hours with two demo times. <b>Cool</b>: send the demo link and a 2-minute walkthrough, check back in 5 days.</li>
+            <li><b>Before the demo</b>: add them as a draft company from their website, so the demo shows their own branded booking page.</li>
+            <li><b>The demo</b> (15 minutes): their expo, their booth, their client list. End with a date for their invites to go out.</li>
+            <li><b>Within 24 hours after</b>: pricing, setup steps and a pilot for their next expo.</li>
+            <li><b>No reply</b>: follow up on day 2 and day 7, then 6 weeks before their next expo.</li>
+          </ol>
+          <p class="muted">Next, once there's enough data: an instant reply with a recorded demo and a booking link, a short summary of what each lead asked before the call, and later a self-serve sign-up for leads who don't need a demo.</p>
+        </details>
+        <div class="table-wrap">
+          <table class="table lead-table">
+            <thead><tr><th>Received</th><th>Lead</th><th>Expo</th><th>Interest</th><th>Next step</th><th>Status</th><th>Notes</th></tr></thead>
+            <tbody id="leadRows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- outreach to exhibitors (the n8n workflows) -->
+      <div id="outreachView" hidden>
+        <div class="results__head">
+          <div>
+            <h1>Outreach</h1>
+            <p class="muted" id="outCount"></p>
+          </div>
+          <div class="results__actions">
+            <button class="btn btn--outline btn--sm" type="button" id="outRefresh">Refresh</button>
+          </div>
+        </div>
+        <p class="err" id="outErr" hidden></p>
+        <div class="warnbox" id="outWarn" hidden></div>
+        <div class="kpis" id="outKpis"></div>
+
+        <details class="playbook">
+          <summary>How the outreach runs</summary>
+          <ol>
+            <li><b>Expos</b>: each Monday, expos 14 to 100 days away (with checked dates) are picked up. Too late is under 2 weeks: invites need time to work.</li>
+            <li><b>Exhibitor list</b>: fetched from the expo's public list page when its robots.txt allows it, otherwise pasted into the import form (from the organiser, a bought list or a copy of their directory).</li>
+            <li><b>People</b>, weekdays 06:00: Apollo finds 2 to 3 people per exhibitor (marketing first, then business development or export, then the MD), verified work emails only.</li>
+            <li><b>Personal lines</b>, 07:00: Claude reads each exhibitor's website and writes the opening line and a LinkedIn note. Nothing is invented.</li>
+            <li><b>Emails</b>, every 20 minutes in their working hours: email 1, a follow-up on day 3 and a last note on day 7, in one thread. Never more than the daily cap, never two first emails to one company on the same day, never to anyone who said no or bounced.</li>
+            <li><b>Replies</b>, every 5 minutes: interested replies stop the sequence for the whole company and email you. No, unsubscribe and bounces go on the do-not-contact list.</li>
+            <li><b>LinkedIn</b>, 08:30: up to 20 profiles a day with ready notes, in your morning email. German and Austrian exhibitors get LinkedIn only.</li>
+            <li><b>After the show</b>: the week after an expo, the same exhibitors get the follow-up pitch (their leads are going cold).</li>
+          </ol>
+        </details>
+
+        <div class="section-head">
+          <h2>Expos</h2>
+          <details class="add-expo">
+            <summary class="btn btn--sm">Add an expo</summary>
+            <form id="addExpo" class="form-grid" novalidate>
+              <label>Name<input name="name" placeholder="e.g. Plastivision India 2027" required></label>
+              <label>Industry<input name="industry" placeholder="e.g. Plastics"></label>
+              <label>City<input name="city"></label>
+              <label>Country<input name="country"></label>
+              <label>Starts<input name="start_date" type="date" required></label>
+              <label>Ends<input name="end_date" type="date"></label>
+              <label class="wide">Website<input name="website" placeholder="https://"></label>
+              <label class="wide">Exhibitor list page<input name="exhibitor_list_url" placeholder="https:// (optional)"></label>
+              <label class="chk wide"><input type="checkbox" name="dates_verified"> I've checked these dates with the organiser</label>
+              <div class="wide"><button class="btn btn--sm" type="submit">Add expo</button></div>
+            </form>
+          </details>
+        </div>
+        <div class="table-wrap">
+          <table class="table expo-table">
+            <thead><tr><th>Expo</th><th>Dates</th><th>Checked</th><th>Exhibitor list</th><th>Pipeline</th><th></th></tr></thead>
+            <tbody id="expoRows"></tbody>
+          </table>
+        </div>
+
+        <div class="section-head">
+          <h2>People</h2>
+          <div class="results__actions">
+            <select id="contactExpo" class="filter-select" aria-label="Expo"></select>
+            <select id="contactStatus" class="filter-select" aria-label="Status"></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table contact-table">
+            <thead><tr><th>Person</th><th>Company</th><th>Expo</th><th>Email sequence</th><th>LinkedIn</th></tr></thead>
+            <tbody id="contactRows"></tbody>
+          </table>
+        </div>
+        <p class="muted" id="contactMore"></p>
+
+        <div class="section-head"><h2>Sending settings</h2></div>
+        <form id="outSettings" class="set form-grid" novalidate>
+          <label class="chk wide"><input type="checkbox" name="sending_enabled"> Send emails (needs the website link and postal address below)</label>
+          <label>Your name<input name="sender_name"></label>
+          <label>Your title<input name="sender_title"></label>
+          <label>Company<input name="sender_company"></label>
+          <label>Phone<input name="sender_phone"></label>
+          <label class="wide">Postal address (required in cold emails)<input name="sender_address"></label>
+          <label>Website link<input name="landing_url" placeholder="https://rp-cphi.pages.dev/expo-manager"></label>
+          <label>Demo link (optional)<input name="demo_url" placeholder="https://"></label>
+          <label class="wide">Proof line (optional, e.g. where it's live)<input name="proof_line"></label>
+          <label>Morning email to<input name="owner_email" type="email"></label>
+          <label>Emails per day<input name="daily_email_cap" type="number" min="0" max="500"></label>
+          <label>LinkedIn per day<input name="linkedin_daily" type="number" min="0" max="20"></label>
+          <div class="wide"><button class="btn btn--sm" type="submit">Save settings</button></div>
+        </form>
+      </div>
+
       </div>
     </main>
   </div>
 
   <script src="js/config.js?v=20261027-11"></script>
   <script src="js/brand.js?v=20261027-11"></script>
-  <script src="js/super.js?v=20261103-2" defer></script>
+  <script src="js/super.js?v=20261104-1" defer></script>
+  <script src="js/super-panels.js?v=20261104-1" defer></script>
 </body>
 </html>

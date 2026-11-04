@@ -1,4 +1,4 @@
-// Expo meetings · admin: accept, reschedule or reject a meeting, and tell the visitor.
+// Expo Manager · admin: accept, reschedule or reject a meeting, and tell the visitor.
 // One pop-up for all three, opened from Requests (and from Cancel meeting, which is a reject).
 // With "Email the visitor" ticked, Code.gs emails them the new status (decideMeeting); an accepted or moved
 // meeting comes with a calendar file. The preview here is the same text the visitor gets.

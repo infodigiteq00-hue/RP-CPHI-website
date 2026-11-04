@@ -78,3 +78,57 @@
   .co-table .row-actions { min-width: 0; }
 }
 
+
+/* section tabs */
+.super-tabs { display: inline-flex; margin-bottom: 24px; }
+.section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 32px 0 12px; }
+.section-head h2 { margin: 0; font-size: 20px; color: var(--navy); }
+.filter-select { height: 40px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; font: inherit; font-size: 14px; }
+
+/* numbers at the top */
+.kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.kpi { padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+.kpi b { display: block; font-size: 24px; line-height: 1.2; color: var(--navy); font-variant-numeric: tabular-nums; }
+.kpi span { font-size: 13px; color: var(--muted); }
+
+/* the playbooks */
+.playbook { margin-bottom: 16px; padding: 12px 16px; background: #fff; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; }
+.playbook summary { cursor: pointer; font-weight: 600; color: var(--navy); }
+.playbook ol { margin: 10px 0 6px; padding-left: 20px; display: grid; gap: 6px; }
+.playbook p { margin: 6px 0 0; }
+.warnbox { margin-bottom: 16px; padding: 12px 16px; background: #fffaeb; border: 1px solid #fedf89; border-radius: 8px; color: #7a2e0e; font-size: 14px; }
+.warnbox ul { margin: 6px 0 10px; padding-left: 20px; }
+
+/* leads */
+.lead-table td { min-width: 110px; }
+.lead-table td[data-label="Next step"] { min-width: 220px; max-width: 300px; }
+.lead-table td[data-label="Notes"] { min-width: 180px; }
+.step { margin: 6px 0 0; font-size: 13px; line-height: 1.45; }
+.heat { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.heat--hot { background: #fee4e2; color: #b42318; }
+.heat--warm { background: #fef0c7; color: #b54708; }
+.heat--cool { background: #e0eaff; color: #3538cd; }
+.score { display: block; width: 90px; height: 6px; margin-top: 6px; background: var(--navy-tint); border-radius: 3px; overflow: hidden; }
+.score i { display: block; height: 100%; background: var(--navy); }
+.lead-status { width: 100%; height: 36px; border: 1px solid var(--line); border-radius: 6px; background: #fff; font: inherit; font-size: 14px; }
+.lead-next { display: grid; gap: 2px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.lead-next input { height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 14px; }
+.lead-next.is-due { color: var(--red); font-weight: 600; }
+.lead-next.is-due input { border-color: var(--red); }
+.lead-notes { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 14px; resize: vertical; }
+
+/* outreach */
+.expo-table td { min-width: 120px; }
+.expo-url { width: 100%; min-width: 200px; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 14px; }
+.chk { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; white-space: nowrap; }
+.add-expo { position: relative; }
+.add-expo > summary { list-style: none; display: inline-flex; align-items: center; cursor: pointer; }
+.add-expo > summary::-webkit-details-marker { display: none; }
+.add-expo[open] .form-grid { position: absolute; right: 0; top: 48px; z-index: 5; width: min(560px, 90vw); padding: 16px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px rgba(16, 24, 40, .12); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.form-grid label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.form-grid label.chk { display: inline-flex; font-weight: 500; color: var(--text); }
+.form-grid input:not([type="checkbox"]) { height: 40px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 14px; color: var(--text); }
+.form-grid .wide { grid-column: 1 / -1; }
+#outSettings { max-width: 760px; padding: 18px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+@media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }

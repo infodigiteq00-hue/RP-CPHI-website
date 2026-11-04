@@ -1,4 +1,4 @@
-// Expo meetings · the owners' dashboard (super.html): companies, their expo seats and their branding.
+// Expo Manager · the owners' dashboard (super.html): companies, their expo seats and their branding.
 // Add a company from its website: the server reads it (logo, colours, font, wording, products, contact) and
 // the owners review and adjust everything here, with a live preview, before switching the company on.
 
@@ -76,6 +76,14 @@ function show(view) {
   $("#listView").hidden = view !== "list";
   $("#readView").hidden = view !== "read";
   $("#editView").hidden = view !== "edit";
+  $("#leadsView").hidden = view !== "leads";
+  $("#outreachView").hidden = view !== "outreach";
+  // the section tabs, except while a company is being added or edited
+  $(".super-tabs").hidden = view === "read" || view === "edit";
+  if (["list", "leads", "outreach"].includes(view)) {
+    const tab = view === "list" ? "companies" : view;
+    document.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+  }
   window.scrollTo(0, 0);
 }
 const dirty = () => !!state.draft && JSON.stringify(state.draft) !== state.original;
@@ -581,5 +589,14 @@ async function save(status) {
 window.addEventListener("beforeunload", (e) => { if (!$("#editView").hidden && dirty()) { e.preventDefault(); e.returnValue = ""; } });
 
 // ---------- start ----------
+// signed in on the website (expo-manager.html): #auth=<token>&u=<who>
+(() => {
+  const m = /^#auth=([\w.=-]+)(?:&u=([^&]*))?/.exec(location.hash);
+  if (!m) return;
+  store.set(TOKEN_KEY, m[1]);
+  store.set(USER_KEY, m[2] ? decodeURIComponent(m[2]) : "Owner");
+  history.replaceState(null, "", location.pathname + location.search);
+})();
+
 if (token()) showApp();
 else $("#loginId").focus();

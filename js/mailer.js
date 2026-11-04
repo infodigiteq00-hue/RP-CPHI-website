@@ -1,4 +1,4 @@
-// Expo meetings · admin: the mailer. Write a mail once (an expo's invite keeps its layout), upload a list, and every
+// Expo Manager · admin: the mailer. Write a mail once (an expo's invite keeps its layout), upload a list, and every
 // person's mail is filled in. On the ready screen, Send email opens that person's mail in the sender's own mailbox; they
 // press Send there, then confirm here, which ticks them with the date. Nothing is sent for them.
 // With Gmail connected the mail opens as a ready draft. Otherwise a link can't carry a design, so it's copied for them

@@ -1,4 +1,4 @@
-// Expo meetings · the booking page (one page serves every company and every expo)
+// Expo Manager · the booking page (one page serves every company and every expo)
 //
 // The company and expo come from the address, and the server works out which is which:
 //   /  /invite  /cphi-worldwide-2027          RP Industries (its default expo, or one of its expos)
