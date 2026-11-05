@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="css/style.css?v=20261027-11">
   <link rel="stylesheet" href="css/admin.css?v=20261027-11">
-  <link rel="stylesheet" href="css/super.css?v=20261104-1">
+  <link rel="stylesheet" href="css/super.css?v=20261105-1">
 </head>
 <body class="admin super">
 
@@ -141,15 +141,31 @@
         <div class="warnbox" id="outWarn" hidden></div>
         <div class="kpis" id="outKpis"></div>
 
+        <div class="section-head">
+          <div>
+            <h2>Ready to send</h2>
+            <p class="muted" id="queueCount"></p>
+          </div>
+          <label class="queue-acct">Gmail account
+            <select id="queueAcct" class="filter-select" aria-label="Which signed-in Gmail account opens">
+              <option value="0">1st signed in</option><option value="1">2nd signed in</option>
+              <option value="2">3rd signed in</option><option value="3">4th signed in</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint">Each email is written and waiting. <b>Open in Gmail</b> opens it ready to send from your own Gmail; press Send there, then <b>Mark as sent</b> here, and the follow-up comes due 3 days later. Best sent in their working hours (shown on each).</p>
+        <div id="queueRows" class="queue"></div>
+        <p class="muted" id="queueMore"></p>
+
         <details class="playbook">
           <summary>How the outreach runs</summary>
           <ol>
             <li><b>Expos</b>: each Monday, expos 14 to 100 days away (with checked dates) are picked up. Too late is under 2 weeks: invites need time to work.</li>
             <li><b>Exhibitor list</b>: fetched from the expo's public list page when its robots.txt allows it, otherwise pasted into the import form (from the organiser, a bought list or a copy of their directory).</li>
             <li><b>People</b>, weekdays 06:00: Apollo finds 2 to 3 people per exhibitor (marketing first, then business development or export, then the MD), verified work emails only.</li>
-            <li><b>Personal lines</b>, 07:00: Claude reads each exhibitor's website and writes the opening line and a LinkedIn note. Nothing is invented.</li>
-            <li><b>Emails</b>, every 20 minutes in their working hours: email 1, a follow-up on day 3 and a last note on day 7, in one thread. Never more than the daily cap, never two first emails to one company on the same day, never to anyone who said no or bounced.</li>
-            <li><b>Replies</b>, every 5 minutes: interested replies stop the sequence for the whole company and email you. No, unsubscribe and bounces go on the do-not-contact list.</li>
+            <li><b>Personal lines</b>, 07:00: Gemini reads each exhibitor's website and writes the opening line and a LinkedIn note. Nothing is invented.</li>
+            <li><b>Emails</b>: email 1, a follow-up on day 3 and a last note on day 7, in one thread. For now you send each one yourself from <b>Ready to send</b>, from your own Gmail. Once the sending domain is set up, n8n sends them in their working hours, within the daily cap. Never two first emails to one company on the same day, never to anyone who said no or bounced.</li>
+            <li><b>Replies</b>: for now, watch your Gmail and mark replies in Ready to send (Interested, Not interested, Bounced). Later n8n reads them every 5 minutes. An interested reply stops the emails for the whole company; no and bounces go on the do-not-contact list.</li>
             <li><b>LinkedIn</b>, 08:30: up to 20 profiles a day with ready notes, in your morning email. German and Austrian exhibitors get LinkedIn only.</li>
             <li><b>After the show</b>: the week after an expo, the same exhibitors get the follow-up pitch (their leads are going cold).</li>
           </ol>
@@ -197,7 +213,7 @@
 
         <div class="section-head"><h2>Sending settings</h2></div>
         <form id="outSettings" class="set form-grid" novalidate>
-          <label class="chk wide"><input type="checkbox" name="sending_enabled"> Send emails (needs the website link and postal address below)</label>
+          <label class="chk wide"><input type="checkbox" name="sending_enabled"> Let n8n send the emails automatically (later, once the sending domain's Gmail is connected; leave off while you send by hand)</label>
           <label>Your name<input name="sender_name"></label>
           <label>Your title<input name="sender_title"></label>
           <label>Company<input name="sender_company"></label>
@@ -220,6 +236,6 @@
   <script src="js/config.js?v=20261104-2"></script>
   <script src="js/brand.js?v=20261027-11"></script>
   <script src="js/super.js?v=20261104-1" defer></script>
-  <script src="js/super-panels.js?v=20261104-2" defer></script>
+  <script src="js/super-panels.js?v=20261105-1" defer></script>
 </body>
 </html>

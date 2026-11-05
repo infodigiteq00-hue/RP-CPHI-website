@@ -132,3 +132,21 @@
 .form-grid .wide { grid-column: 1 / -1; }
 #outSettings { max-width: 760px; padding: 18px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
 @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+
+/* Ready to send: each outreach email written and waiting, sent by hand from Gmail */
+.queue { display: grid; gap: 10px; }
+.queue-acct { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.qcard { padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+.qcard__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; }
+.qcard__head small { display: block; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.qcard__meta { text-align: right; }
+.qcard__meta small.ok { color: var(--green); }
+.qcard__meta small.late { color: #b54708; }
+.qstep { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--navy-tint); color: var(--navy); font-size: 12px; font-weight: 600; }
+.qcard__mail { margin: 8px 0; }
+.qcard__mail summary { cursor: pointer; font-size: 14px; color: var(--navy); }
+.qcard__mail pre { margin: 8px 0 0; padding: 10px 12px; background: #f8f9fb; border-radius: 6px; font: 13px/1.5 inherit; font-family: inherit; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 340px; overflow: auto; }
+.qcard__acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.qcard__more { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
+.qcard__msg { flex-basis: 100%; color: var(--muted); font-size: 13px; }
+@media (max-width: 600px) { .qcard__meta { text-align: left; } }

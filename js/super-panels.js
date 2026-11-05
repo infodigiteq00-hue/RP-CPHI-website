@@ -163,9 +163,8 @@ function renderOutreach() {
 
   // what's blocking sending
   const warn = [];
-  if (!s.sending_enabled) warn.push("Email sending is switched off.");
-  if (!s.landing_url) warn.push("The website link is empty, so no emails can go out.");
-  if (!s.sender_address) warn.push("The postal address is empty. Cold emails must include one, so sending is paused.");
+  if (!s.landing_url) warn.push("The website link is empty (Sending settings below). The emails link to it, so none can go out.");
+  if (!s.sender_address) warn.push("The postal address is empty (Sending settings below). Cold emails must include one, so the Ready to send list is paused.");
   const needList = upcoming.filter((e) => ["needs_list", "blocked_robots"].includes(e.status));
   if (needList.length) warn.push(`${needList.length} expo${needList.length === 1 ? " needs" : "s need"} an exhibitor list pasted in: ${needList.map((e) => e.name).join(", ")}.`);
   $("#outWarn").innerHTML = warn.length ? `<b>Needs you</b><ul>${warn.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>${needList.length ? `<a class="btn btn--sm" href="${IMPORT_FORM}" target="_blank" rel="noopener">Open the exhibitor import form</a>` : ""}` : "";
@@ -209,7 +208,186 @@ function renderOutreach() {
   $("#contactExpo").innerHTML = `<option value="">All expos</option>` + expoNames.map((n) => `<option${n === panels.filter.expo ? " selected" : ""}>${esc(n)}</option>`).join("");
   $("#contactStatus").innerHTML = `<option value="">All statuses</option>` + Object.keys(cs).map((k) => `<option value="${esc(k)}"${k === panels.filter.contactStatus ? " selected" : ""}>${esc(k)} (${cs[k]})</option>`).join("");
   renderContacts();
+  renderQueue();
 }
+
+// ---------- ready to send (by hand, from your own Gmail) ----------
+// Until the separate sending domain is set up, n8n's "Send emails" workflow stays off. Each email due today is written
+// here (the same three emails it would send), opens in Gmail with one click, and "Mark as sent" moves the person on:
+// the follow-up comes due 3 days later, the last note 4 days after that. Same rules as the workflow: never to the
+// do-not-contact list, one first email per company per day, nothing once the expo is too close or over.
+const TZ = { india: 5.5, "united arab emirates": 4, uae: 4, "saudi arabia": 3, qatar: 3, oman: 4, kuwait: 3, bahrain: 3, egypt: 2, turkey: 3,
+  "united kingdom": 0, uk: 0, ireland: 0, portugal: 0, germany: 1, france: 1, italy: 1, spain: 1, netherlands: 1, belgium: 1, switzerland: 1,
+  austria: 1, poland: 1, sweden: 1, denmark: 1, norway: 1, czechia: 1, "czech republic": 1, hungary: 1, greece: 2, finland: 2, romania: 2,
+  israel: 2, "south africa": 2, nigeria: 1, kenya: 3, "united states": -5, usa: -5, canada: -5, mexico: -6, brazil: -3, argentina: -3,
+  chile: -3, colombia: -5, china: 8, "hong kong": 8, taiwan: 8, singapore: 8, malaysia: 8, philippines: 8, indonesia: 7, thailand: 7,
+  vietnam: 7, japan: 9, "south korea": 9, korea: 9, australia: 10, "new zealand": 12, bangladesh: 6, pakistan: 5, "sri lanka": 5.5, nepal: 5.75 };
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const STEP_NAME = ["First email", "Follow-up (day 3)", "Last note (day 7)"];
+const SUBJECT = (expo) => `A thought ahead of ${expo}`;
+const shortCo = (n) => String(n || "").replace(/\b(pvt\.?|private|ltd\.?|limited|llp|llc|inc\.?|gmbh|co\.?|corp\.?|corporation|plc|s\.?a\.?|s\.?r\.?l\.?|b\.?v\.?|ag)\b/gi, "")
+  .replace(/[\s,.]+$/, "").replace(/\s+/g, " ").trim() || n;
+const gmailAcct = () => { try { return localStorage.getItem("em-gmail-acct") || "0"; } catch (e) { return "0"; } };
+
+function theirTime(country) {
+  const off = TZ[String(country || "").toLowerCase()] ?? 5.5;
+  const d = new Date(Date.now() + off * 36e5);
+  const day = d.getUTCDay(), h = d.getUTCHours() + d.getUTCMinutes() / 60;
+  const label = d.toLocaleString("en-GB", { timeZone: "UTC", weekday: "short", hour: "2-digit", minute: "2-digit" });
+  return { label, ok: day >= 1 && day <= 5 && h >= 9.5 && h < 17 };
+}
+
+// The email for this person's next step, as plain text (the same words as n8n's Send emails workflow)
+function draftFor(c, s) {
+  const step = Number(c.step || 0);
+  const co = shortCo(c.company);
+  const first = String(c.first_name || "").trim() || "there";
+  const start = c.expo_start ? new Date(c.expo_start) : null;
+  const month = start ? ` this ${MONTHS[start.getUTCMonth()]}` : "";
+  const landing = String(s.landing_url || "").trim();
+  const link = landing + (landing.includes("?") ? "&" : "?") + "expo=" + encodeURIComponent(c.expo_name || "") + "&company=" + encodeURIComponent(co)
+    + (c.expo_city ? "&city=" + encodeURIComponent(c.expo_city) : "") + "&utm_source=email&utm_content=step" + (step + 1) + "#try";
+  const sender = String(s.sender_name || "").trim();
+  const foot = `--\nIf you'd rather not hear from me again, just reply and let me know.\n${[s.sender_company, s.sender_address].filter(Boolean).join(", ")}`;
+  let body;
+  if (step === 0) {
+    const opener = c.opener || `I noticed ${c.company} will be at ${c.expo_name}${c.expo_city ? " in " + c.expo_city : ""}${month}.`;
+    body = [`Hi ${first},`,
+      `${opener} A stand there is a real commitment of time and budget, and those few days go by quickly.`,
+      "I've been speaking with exhibitors for a while, and the same thing keeps coming up. The show itself usually goes well, but a lot of its value slips away around it. Meetings get arranged over WhatsApp in the final week. Conversations at the booth start to run into each other. And by the time everyone is back at their desks, the follow-ups take longer than anyone would like.",
+      "We built Expo Manager to take some of that weight off. Visitors book a time with your team from a personal invitation. A short voice note after each conversation turns into a clear summary. And a thoughtful follow-up is ready for you to review when you're back.",
+      s.proof_line || "",
+      `If it's useful, here is how it would look for ${co} at ${c.expo_name}:\n${link}`,
+      "And if the timing isn't right, no problem at all. I'd be glad to share it whenever it suits you.",
+      `Warm regards,\n${sender}\n${[s.sender_company, s.sender_phone].filter(Boolean).join(" · ")}`,
+      foot].filter(Boolean).join("\n\n");
+  } else if (step === 1) {
+    body = [`Hi ${first},`, "I know the weeks before a show are full, so just a gentle follow-up on my note.",
+      `The part exhibitors tell me they value most is the week after: writing to every visitor while the conversation is still fresh. If it would help, I can set up a short preview with ${co}${/s$/i.test(co) ? "'" : "'s"} own details, so your team can see it with real names and dates. Here is a quick look in the meantime:\n${link}`,
+      "Either way, I hope the preparations are going well.", sender.split(/\s+/)[0], foot].join("\n\n");
+  } else {
+    body = [`Hi ${first},`, `I'll leave this with you, so I'm not filling your inbox before ${c.expo_name}.`,
+      "If it's ever useful, even after the show, I'm happy to walk you through it whenever suits you.",
+      `Wishing you and the team a very good ${c.expo_name}.`, sender.split(/\s+/)[0], foot].join("\n\n");
+  }
+  const subject = step === 0 ? SUBJECT(c.expo_name) : "Re: " + SUBJECT(c.expo_name);
+  return { step, subject, body };
+}
+
+function queueList() {
+  const o = panels.outreach;
+  const contacts = rows(o.contacts), log = rows(o.log), supp = rows(o.suppression);
+  const noEmail = new Set(supp.map((x) => String(x.email || "").toLowerCase()).filter(Boolean));
+  const noDomain = new Set(supp.map((x) => String(x.domain || "").toLowerCase()).filter(Boolean));
+  const today = new Date().toDateString();
+  const firstToday = new Set(log.filter((x) => x.result === "sent" && Number(x.step) === 1 && new Date(x.sent_at).toDateString() === today)
+    .map((x) => String(x.company || "").toLowerCase()));
+  const now = Date.now();
+  const due = contacts.filter((c) => {
+    const step = Number(c.step || 0);
+    if (!["ready", "in_sequence"].includes(c.status) || step >= 3 || !c.email) return false;
+    if (noEmail.has(String(c.email).toLowerCase()) || noDomain.has(String(c.domain || "").toLowerCase())) return false;
+    if (c.next_send_at && new Date(c.next_send_at).getTime() > now) return false;
+    const start = c.expo_start ? new Date(c.expo_start).getTime() : null;
+    if (step === 0 && start && start - now < 3 * DAY) return false;
+    if (step > 0 && start && now > start + 4 * DAY) return false;
+    return true;
+  });
+  due.sort((a, b) => (Number(b.step) > 0) - (Number(a.step) > 0) || String(a.expo_start || "").localeCompare(String(b.expo_start || "")));
+  const firstPicked = new Set(firstToday);
+  return due.filter((c) => {
+    if (Number(c.step || 0) > 0) return true;
+    const co = String(c.company || "").toLowerCase();
+    if (firstPicked.has(co)) return false; // one first email per company per day
+    firstPicked.add(co);
+    return true;
+  });
+}
+
+function renderQueue() {
+  const o = panels.outreach;
+  const s = rows(o.settings)[0] || {};
+  const sentToday = rows(o.log).filter((x) => x.result === "sent" && new Date(x.sent_at).toDateString() === new Date().toDateString()).length;
+  const cap = Number(s.daily_email_cap || 20);
+  const list = queueList();
+  const blocked = !s.landing_url || !s.sender_address;
+  $("#queueCount").textContent = `${list.length} due · ${sentToday} of ${cap} sent today`;
+  $("#queueAcct").value = gmailAcct();
+  const shown = list.slice(0, 50);
+  $("#queueRows").innerHTML = blocked
+    ? `<p class="muted">Add the website link and your postal address in Sending settings below, then the emails appear here.</p>`
+    : shown.map((c) => {
+      const d = draftFor(c, s);
+      const t = theirTime(c.country);
+      const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.email;
+      return `<article class="qcard" data-qid="${esc(c.id)}" data-qstep="${esc(d.step)}">
+        <div class="qcard__head">
+          <div><strong>${esc(name)}</strong> <span class="muted">${esc(c.title || "")}</span>
+            <small>${esc(c.company)} · ${esc(c.expo_name)} · <a href="mailto:${esc(c.email)}">${esc(c.email)}</a></small></div>
+          <div class="qcard__meta"><span class="qstep">${esc(STEP_NAME[d.step])}</span>
+            <small class="${t.ok ? "ok" : "late"}">${esc(t.label)} their time${t.ok ? "" : " · outside working hours"}</small></div>
+        </div>
+        <details class="qcard__mail"><summary>${esc(d.subject)}</summary><pre>${esc(d.body)}</pre></details>
+        <div class="qcard__acts">
+          ${d.step === 0
+            ? `<button class="btn btn--sm" type="button" data-q="open">Open in Gmail</button>`
+            : `<button class="btn btn--sm" type="button" data-q="reply" title="Copies the follow-up and opens your earlier email to them: click Reply there and paste">Copy &amp; open the thread</button>
+               <button class="act" type="button" data-q="open">New email instead</button>`}
+          <button class="btn btn--outline btn--sm" type="button" data-q="sent">Mark as sent</button>
+          <span class="qcard__more">They replied:
+            <button class="act" type="button" data-q="replied">Interested</button>
+            <button class="act" type="button" data-q="not_interested">Not interested</button>
+            <button class="act" type="button" data-q="bounced">Bounced</button></span>
+          <small class="qcard__msg" aria-live="polite"></small>
+        </div>
+      </article>`;
+    }).join("") || `<p class="muted">Nothing due right now. New people become ready after the weekday 07:00 personalising run, and follow-ups come due 3 and 7 days after you send.</p>`;
+  $("#queueMore").textContent = !blocked && list.length > shown.length ? `Showing the first ${shown.length} of ${list.length}.` : "";
+}
+
+$("#queueAcct").addEventListener("change", (e) => { try { localStorage.setItem("em-gmail-acct", e.target.value); } catch (err) { /* private window */ } });
+
+$("#queueRows").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-q]");
+  if (!b) return;
+  const card = b.closest("[data-qid]");
+  const c = rows(panels.outreach.contacts).find((x) => String(x.id) === card.dataset.qid);
+  if (!c) return;
+  const s = rows(panels.outreach.settings)[0] || {};
+  const d = draftFor(c, s);
+  const msg = card.querySelector(".qcard__msg");
+  const acct = gmailAcct();
+  const what = b.dataset.q;
+  if (what === "open") {
+    const url = `https://mail.google.com/mail/u/${encodeURIComponent(acct)}/?view=cm&fs=1&to=${encodeURIComponent(c.email)}&su=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`;
+    window.open(url, "_blank", "noopener");
+    msg.textContent = "After you press Send in Gmail, click Mark as sent.";
+    return;
+  }
+  if (what === "reply") {
+    try { await navigator.clipboard.writeText(d.body); msg.textContent = "Copied. In Gmail, open your email to them, click Reply, paste, send. Then Mark as sent."; }
+    catch (err) { msg.textContent = "Couldn't copy: open the email text above and copy it by hand."; }
+    window.open(`https://mail.google.com/mail/u/${encodeURIComponent(acct)}/#search/${encodeURIComponent("to:" + c.email)}`, "_blank", "noopener");
+    return;
+  }
+  if (what !== "sent" && !confirm({ replied: "Mark as interested? Their emails stop, and so do their colleagues'. Answer them yourself.",
+    not_interested: "Mark as not interested? They go on the do-not-contact list.", bounced: "Mark as bounced? The address goes on the do-not-contact list." }[what])) return;
+  card.querySelectorAll("button").forEach((x) => { x.disabled = true; });
+  msg.textContent = "Saving…";
+  try {
+    const r = await api("superSaveOutreach", { token: token(), contact: { id: c.id, action: what, step: d.step, subject: d.subject } });
+    if (!r.ok) throw new Error(r.error);
+    if (r.contactSaved === undefined) throw new Error("old_script");
+    if (!r.contactSaved) throw new Error("not_saved");
+    panels.outreach = r.outreach;
+    renderOutreach();
+  } catch (ex) {
+    if (ex.message === "auth") return;
+    card.querySelectorAll("button").forEach((x) => { x.disabled = false; });
+    msg.textContent = ex.message === "old_script" ? "The Apps Script is an older version: paste the latest Code.gs and deploy a new version, then try again."
+      : "Couldn't save. Try again.";
+  }
+});
 
 const EXPO_STATUS = {
   new: "waiting for its window", needs_list: "needs an exhibitor list", blocked_robots: "its site blocks fetching: paste the list",
