@@ -532,3 +532,5 @@ tr.is-cancelled td:not(:last-child) { opacity: .5; }
 .mail-ask p { margin: 0; flex-basis: 100%; }
 .mail-sent { color: var(--ok); font-weight: 600; }
 .mail-undo { margin-left: 10px; }
+.mail-group { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 0 0 12px; white-space: normal; }
+.mail-co td { background: var(--navy-tint, #f2f5fb); }

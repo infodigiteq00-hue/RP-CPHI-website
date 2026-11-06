@@ -120,7 +120,8 @@ function renderConn(r) {
 function renderLists(r) {
   const lists = r.lists || []; // an older Apps Script has none
   $("#mLists").innerHTML = lists.length ? lists.map((l) => `<tr>
-      <td data-label="Subject">${esc(l.subject)}</td>
+      <td data-label="List">${l.name ? `<strong>${esc(l.name)}</strong><br><small class="muted">${esc(l.subject)}</small>` : esc(l.subject)}
+        ${r.lists && "name" in l ? `<br><button class="link mail-rename" type="button" data-rename="${esc(l.id)}" data-name="${esc(l.name || "")}">${l.name ? "Rename" : "Name this list"}</button>` : ""}</td>
       <td data-label="Created">${esc(l.created)}${l.by ? `<br><small class="muted">${esc(l.by)}</small>` : ""}</td>
       <td data-label="Sent">${l.sent} of ${l.total}</td>
       <td><button class="link" type="button" data-open="${esc(l.id)}">Open</button></td>
@@ -251,9 +252,9 @@ $("#mailForm").addEventListener("submit", async (e) => {
   btn.disabled = true;
   btn.textContent = "Getting them ready…";
   try {
-    const r = await api("mailSave", { token: mailToken(), subject, message, cc: cc.join(", "), people });
+    const r = await api("mailSave", { token: mailToken(), name: $("#mName").value.trim(), subject, message, cc: cc.join(", "), people });
     if (!r.ok) throw new Error(r.error);
-    ["mStart", "mSubject", "mMessage", "mList"].forEach((id) => { $(`#${id}`).value = ""; });
+    ["mStart", "mName", "mSubject", "mMessage", "mList"].forEach((id) => { $(`#${id}`).value = ""; });
     countLine();
     showReady(r);
     openMailer();
@@ -283,22 +284,86 @@ const when = (t) => {
   return `${Number(m[3])} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(m[2]) - 1]} ${m[1]}, ${m[4]}`;
 };
 
+// ---------- one email per company ----------
+// Colleagues at the same company get one email together: the first on the list in To, the others in CC, and the
+// greeting names them all. Same company = the same work email domain (never Gmail, Yahoo and the like, where two
+// people are just two people), or the same company name once capitals, punctuation and Pvt, Ltd and the like are
+// set aside. Both count, so a colleague on a personal address joins their company's email by its name.
+const FREE_MAIL = new Set(["gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.in", "yahoo.in", "ymail.com", "rocketmail.com",
+  "outlook.com", "hotmail.com", "live.com", "msn.com", "icloud.com", "me.com", "mac.com", "aol.com", "rediffmail.com", "rediff.com",
+  "protonmail.com", "proton.me", "zoho.com", "zohomail.com", "zohomail.in", "gmx.com", "gmx.de", "gmx.net", "web.de", "mail.com",
+  "yandex.com", "yandex.ru", "qq.com", "163.com", "126.com", "sina.com", "naver.com", "hanmail.net", "fastmail.com", "tutanota.com",
+  "hey.com", "sify.com", "vsnl.net", "vsnl.com", "bsnl.in", "inbox.com"]);
+const freeMail = (d) => FREE_MAIL.has(d) || /^(yahoo|hotmail|outlook|live|msn)\.[a-z.]+$/.test(d);
+const CO_ENDINGS = new Set(["pvt", "private", "ltd", "limited", "llp", "llc", "inc", "incorporated", "corp", "corporation", "plc", "gmbh", "co"]);
+const coKey = (n) => String(n || "").toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").split(" ")
+  .filter((w) => w && !CO_ENDINGS.has(w)).join(" ");
+const groupOn = () => { try { return localStorage.getItem("mailer_group") !== "0"; } catch { return true; } };
+
+// the people in groups, each group in the order its first person is on the list
+function mailGroups() {
+  const ppl = mail.people;
+  if (!groupOn()) return ppl.map((p) => [p]);
+  const parent = ppl.map((_, i) => i);
+  const root = (i) => (parent[i] === i ? i : (parent[i] = root(parent[i])));
+  const join = (a, b) => { const x = root(a), y = root(b); if (x !== y) parent[Math.max(x, y)] = Math.min(x, y); };
+  const first = {};
+  ppl.forEach((p, i) => {
+    const domain = String(p.email.split("@")[1] || "").toLowerCase();
+    const keys = [domain && !freeMail(domain) ? `d:${domain}` : "", coKey(p.company) ? `c:${coKey(p.company)}` : ""].filter(Boolean);
+    keys.forEach((k) => { if (k in first) join(first[k], i); else first[k] = i; });
+  });
+  const groups = new Map();
+  ppl.forEach((p, i) => { const r = root(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(p); });
+  return [...groups.keys()].sort((a, b) => a - b).map((r) => groups.get(r));
+}
+
+// "Hiren and Ashish", "Sachin, Babita and Vijaya", "Sachin and team" (four or more)
+const greetNames = (list) => {
+  const f = list.map((p) => String(p.firstName || "").trim()).filter(Boolean);
+  return f.length >= 4 ? `${f[0]} and team` : f.length > 1 ? `${f.slice(0, -1).join(", ")} and ${f[f.length - 1]}` : f[0] || "";
+};
+const splitMails = (...v) => v.join(",").split(/[\s,;]+/).filter(Boolean).map((e) => e.toLowerCase());
+
+// who a group's email goes to: the people not yet sent, the first in To and the others in CC with your team
+function mailTarget(g) {
+  const open = g.filter((p) => !p.sentAt);
+  const goes = open.length ? open : g;
+  const to = goes[0];
+  const others = goes.slice(1);
+  const own = [...new Set(splitMails(...others.map((p) => p.email), ...goes.map((p) => p.cc)))].filter((e) => e !== to.email);
+  const cc = [...new Set(splitMails(mail.list.cc, own.join(",")))].filter((e) => e !== to.email);
+  return { key: to.email, members: g, open, email: to.email, cc: cc.join(", "), ownCc: own.join(", "),
+    firstName: others.length ? greetNames(goes) : to.firstName, lastName: others.length ? "" : to.lastName,
+    company: (g.find((p) => p.company) || {}).company || "" };
+}
+const targetFor = (key) => mailGroups().map(mailTarget).find((t) => t.key === key);
+
 function renderReady() {
   const sent = mail.people.filter((p) => p.sentAt).length;
   const total = mail.people.length;
-  $("#mReadyTitle").textContent = sent === total ? "All your emails are sent" : `Your emails are ready: ${total - sent} to send`;
-  $("#mReadyLine").textContent = `${mail.list.subject} · ${sent} of ${total} sent${mail.list.cc ? ` · CC ${mail.list.cc}` : ""}`;
+  const groups = mailGroups();
+  const toSend = groups.filter((g) => g.some((p) => !p.sentAt)).length;
+  $("#mReadyTitle").textContent = sent === total ? "All your emails are sent" : `Your emails are ready: ${toSend} to send`;
+  $("#mReadyLine").textContent = `${mail.list.name ? `${mail.list.name} · ` : ""}${mail.list.subject} · ${sent} of ${total} people sent`
+    + (groups.length < total ? ` · ${total} people in ${groups.length} emails, colleagues together` : "") + (mail.list.cc ? ` · CC ${mail.list.cc}` : "");
   $("#mBoxWrap").hidden = draftMode();
-  $("#mPeople").innerHTML = mail.people.map((p) => {
-    const a = mail.asking && mail.asking.email === p.email ? mail.asking : null;
-    const action = p.sentAt ? `<span class="mail-sent">✓ Sent ${esc(when(p.sentAt))}</span><button class="link mail-undo" type="button" data-unmark="${esc(p.email)}">Undo</button>`
+  $("#mGroup").checked = groupOn();
+  $("#mPeople").innerHTML = groups.map((g) => {
+    const t = mailTarget(g);
+    const many = g.length > 1;
+    const a = mail.asking && mail.asking.email === t.key ? mail.asking : null;
+    const lastSent = g.map((p) => p.sentAt).filter(Boolean).sort().pop();
+    const action = !t.open.length ? `<span class="mail-sent">✓ Sent ${esc(when(lastSent))}</span><button class="link mail-undo" type="button" data-unmark="${esc(t.key)}">Undo</button>`
       : a ? `<div class="mail-ask"><p>${a.note ? `${esc(a.note)} ` : ""}<b>Have you sent the mail?</b></p>
-          <button class="btn btn--sm" type="button" data-yes="${esc(p.email)}">Yes, sent</button><button class="link" type="button" data-no="${esc(p.email)}">Not yet</button></div>`
-      : `<button class="btn btn--sm" type="button" data-send="${esc(p.email)}"${mail.asking ? " disabled" : ""}>Send email</button>`;
-    return `<tr>
-      <td data-label="Person">${esc([p.firstName, p.lastName].filter(Boolean).join(" ") || "—")}</td>
-      <td data-label="Company">${esc(p.company || "—")}</td>
-      <td data-label="Email">${esc(p.email)}${p.cc ? `<br><small class="muted">CC ${esc(p.cc)}</small>` : ""}</td>
+          <button class="btn btn--sm" type="button" data-yes="${esc(t.key)}">Yes, sent</button><button class="link" type="button" data-no="${esc(t.key)}">Not yet</button></div>`
+      : `<button class="btn btn--sm" type="button" data-send="${esc(t.key)}"${mail.asking ? " disabled" : ""}>Send email</button>`;
+    const person = g.map((p) => esc([p.firstName, p.lastName].filter(Boolean).join(" ") || p.email.split("@")[0])
+      + (many && p.sentAt && t.open.length ? ` <small class="muted">sent</small>` : "")).join("<br>");
+    return `<tr${many ? ` class="mail-co"` : ""}>
+      <td data-label="Person">${person}</td>
+      <td data-label="Company">${esc(t.company || "—")}${many ? `<br><small class="muted">${g.length} people, one email</small>` : ""}</td>
+      <td data-label="Email">${many ? `<small class="muted">To</small> ` : ""}${esc(t.email)}${t.ownCc ? `<br><small class="muted">CC ${esc(t.ownCc)}</small>` : ""}</td>
       <td>${action}</td>
     </tr>`;
   }).join("");
@@ -367,10 +432,10 @@ async function sendOne(p) {
 $("#mPeople").addEventListener("click", async (e) => {
   const b = e.target.closest("button");
   if (!b) return;
-  const email = b.dataset.send || b.dataset.yes || b.dataset.no || b.dataset.unmark;
-  const p = mail.people.find((x) => x.email === email);
-  if (!p) return;
-  if (b.dataset.send) return sendOne(p);
+  const key = b.dataset.send || b.dataset.yes || b.dataset.no || b.dataset.unmark;
+  const t = targetFor(key);
+  if (!t) return;
+  if (b.dataset.send) return sendOne(t);
   if (b.dataset.no) {
     const draft = mail.asking && mail.asking.draft;
     mail.asking = null;
@@ -378,13 +443,16 @@ $("#mPeople").addEventListener("click", async (e) => {
     if (draft) api("dropDraft", { token: mailToken(), draftId: draft }).catch(() => {}); // a new one is made if they send again
     return;
   }
-  // Yes (ticks them, with the date) or Undo
+  // Yes (ticks everyone the email went to, with the date) or Undo (the whole group)
   b.disabled = true;
   try {
-    const r = await api("mailMark", { token: mailToken(), id: mail.list.id, email, sent: !b.dataset.unmark });
-    if (!r.ok) throw new Error(r.error);
-    p.sentAt = r.sentAt;
-    p.sentBy = r.sentBy;
+    const marking = b.dataset.unmark ? t.members.filter((p) => p.sentAt) : t.open;
+    for (const p of marking) {
+      const r = await api("mailMark", { token: mailToken(), id: mail.list.id, email: p.email, sent: !b.dataset.unmark });
+      if (!r.ok) throw new Error(r.error);
+      p.sentAt = r.sentAt;
+      p.sentBy = r.sentBy;
+    }
     if (b.dataset.yes) mail.asking = null;
     renderReady();
     const next = $("#mPeople").querySelector("[data-send]");
@@ -403,6 +471,21 @@ $("#mBack").addEventListener("click", () => {
   openMailer();
 });
 $("#mLists").addEventListener("click", async (e) => {
+  const rn = e.target.closest("[data-rename]");
+  if (rn) {
+    const name = prompt("Name this list (who it's for):", rn.dataset.name || "");
+    if (name === null) return;
+    rn.disabled = true;
+    try {
+      const r = await api("mailRename", { token: mailToken(), id: rn.dataset.rename, name: name.trim() });
+      if (!r.ok) throw new Error(r.error);
+      openMailer();
+    } catch (ex) {
+      rn.disabled = false;
+      if (ex.message !== "auth") alert(ex.message === "bad_request" || ex.message === "invalid_slot" ? MAIL_ERRORS.invalid_slot : "Couldn't rename the list. Try again.");
+    }
+    return;
+  }
   const b = e.target.closest("[data-open]");
   if (!b) return;
   b.disabled = true;
@@ -411,4 +494,9 @@ $("#mLists").addEventListener("click", async (e) => {
     if (r.ok) showReady(r);
   } catch (ex) { /* signed out or offline: stays on the list */ }
   b.disabled = false;
+});
+$("#mGroup").addEventListener("change", (e) => {
+  try { localStorage.setItem("mailer_group", e.target.checked ? "1" : "0"); } catch {}
+  mail.asking = null;
+  renderReady();
 });

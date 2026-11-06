@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="css/style.css?v=20261027-11">
-  <link rel="stylesheet" href="css/admin.css?v=20261104-1">
+  <link rel="stylesheet" href="css/admin.css?v=20261106-1">
   <script>
     // A company's dashboard (?c=…) starts as RP Industries' page: hide RP's logo, name, title and tab icon
     // until the company's own arrive. On a repeat visit its colours, title and icon come straight from this device.
@@ -188,6 +188,8 @@
               <iframe class="mail-preview" id="mPreview" title="Preview of the mail" sandbox></iframe></div>
 
             <h2 class="mailer__step">2. Who it goes to</h2>
+            <div class="field"><label for="mName">List name</label><input id="mName" maxlength="120" placeholder="e.g. Pharma buyers, Mumbai · CPHI 2026" autocomplete="off">
+              <p class="hint">Who this list is for. Only you and your team see it, in Your lists.</p></div>
             <p class="hint"><button class="link" type="button" id="mTemplate">Download the template</button> (First name, Last name, Email ID, Company name, CC), fill it in, save it as CSV and upload it. CC is optional: that person's colleagues, separated with ";".</p>
             <div class="field"><label class="btn btn--outline btn--sm mail-upload" for="mFile">Upload the list</label><input id="mFile" type="file" accept=".csv,.txt" hidden>
               <label for="mList">Or paste it here: First name, Last name, Email ID, Company name, CC</label>
@@ -199,7 +201,7 @@
           <h2 class="mailer__h">Your lists</h2>
           <div class="table-wrap">
             <table class="table">
-              <thead><tr><th>Subject</th><th>Created</th><th>Sent</th><th></th></tr></thead>
+              <thead><tr><th>List</th><th>Created</th><th>Sent</th><th></th></tr></thead>
               <tbody id="mLists"></tbody>
             </table>
           </div>
@@ -216,6 +218,8 @@
               <option value="outlook-live">Outlook.com (personal)</option>
               <option value="mailto">Default mail app</option>
             </select></p>
+          <label class="chk mail-group"><input type="checkbox" id="mGroup" checked> One email per company: colleagues go in CC
+            <small class="muted">(same work email domain, or the same company name)</small></label>
           <div class="table-wrap">
             <table class="table">
               <thead><tr><th>Person</th><th>Company</th><th>Email</th><th></th></tr></thead>
@@ -555,7 +559,7 @@
   <script src="js/expos.js?v=20261103-1" defer></script>
   <script src="js/invite-mail.js?v=20261031-3" defer></script>
   <script src="js/invite.js?v=20261029-2" defer></script>
-  <script src="js/mailer.js?v=20261103-2" defer></script>
+  <script src="js/mailer.js?v=20261106-2" defer></script>
   <script src="js/ink.js?v=20261027-11" defer></script>
   <script src="js/meeting.js?v=20261027-11" defer></script>
   <script src="js/decide.js?v=20261027-11" defer></script>
