@@ -166,7 +166,7 @@ function renderOutreach() {
   if (!s.landing_url) warn.push("The website link is empty (Sending settings below). The emails link to it, so none can go out.");
   if (!s.sender_address) warn.push("The postal address is empty (Sending settings below). Cold emails must include one, so the Ready to send list is paused.");
   const needList = upcoming.filter((e) => ["needs_list", "blocked_robots"].includes(e.status));
-  if (needList.length) warn.push(`${needList.length} expo${needList.length === 1 ? " needs" : "s need"} an exhibitor list pasted in: ${needList.map((e) => e.name).join(", ")}.`);
+  if (needList.length) warn.push(`${needList.length} expo${needList.length === 1 ? " needs" : "s need"} its exhibitor list: ${needList.map((e) => e.name).join(", ")}. Add the list page URL and press Run (or paste the list into the import form).`);
   $("#outWarn").innerHTML = warn.length ? `<b>Needs you</b><ul>${warn.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>${needList.length ? `<a class="btn btn--sm" href="${IMPORT_FORM}" target="_blank" rel="noopener">Open the exhibitor import form</a>` : ""}` : "";
   $("#outWarn").hidden = !warn.length;
 
@@ -193,7 +193,7 @@ function renderOutreach() {
       <td data-label="Checked"><label class="chk"><input type="checkbox" class="expo-verified"${e.dates_verified ? " checked" : ""}> dates checked</label></td>
       <td data-label="Exhibitor list"><input class="expo-url" placeholder="Public list page URL" value="${esc(e.exhibitor_list_url || "")}"><small>${esc(EXPO_STATUS[e.status] || e.status || "")}${e.notes ? ` · ${esc(e.notes)}` : ""}</small></td>
       <td data-label="Pipeline"><strong>${coN[e.name] || 0} exhibitors</strong><small>${peopleN[e.name] || 0} people · ${sentN[e.name] || 0} emailed (14 d)</small></td>
-      <td data-label=""><button class="act" type="button" data-save-expo>Save</button><small class="expo-saved" hidden>Saved</small></td>
+      <td data-label=""><div class="expo-acts"><button class="act act--primary" type="button" data-run-expo title="Open the list page, read every exhibitor and start the outreach">Run</button><button class="act" type="button" data-save-expo>Save</button></div></td>
     </tr>`;
   }).join("") || `<tr><td colspan="6" class="muted">No expos yet.</td></tr>`;
 
@@ -482,3 +482,130 @@ $("#outSettings").addEventListener("submit", async (e) => {
     setTimeout(() => { btn.textContent = "Save settings"; }, 2000);
   }
 });
+
+// ---------- Run: read an expo's exhibitor list from its page and start the outreach ----------
+// The Expo Manager collector (the expo-collector Chrome extension, loaded once) opens the list page in a new tab,
+// loads the whole list like a person would and hands the exhibitors back here. They go to n8n's Outreach 1 with
+// this sign-in, which saves them and runs Apollo (Outreach 2) and the personal lines (Outreach 3) straight away.
+const COLLECT_HOOK = "https://n8n-production-e061b.up.railway.app/webhook/collect-exhibitors";
+const collector = { ready: false, run: null, poll: null };
+window.addEventListener("message", (e) => {
+  if (e.source !== window || e.origin !== location.origin) return;
+  const m = e.data || {};
+  if (m.source !== "em-collector") return;
+  if (m.type === "ready") { collector.ready = true; if (!$("#runBox").hidden && !collector.run) showRunSetup(); return; }
+  const run = collector.run;
+  if (!run || m.runId !== run.id) return;
+  if (m.type === "progress") runStep("read", m.msg);
+  else if (m.type === "result") sendCollected(run, m);
+  else if (m.type === "error") runFail("read", "The collector stopped: " + (m.error || "unknown error") + ". Try Run again.");
+});
+const pingCollector = () => window.postMessage({ source: "em-dashboard", type: "ping" }, location.origin);
+pingCollector();
+
+const RUN_STEPS = [["read", "Read the exhibitor list"], ["save", "Save the exhibitors"], ["people", "Find decision makers (Apollo) and write personal lines"]];
+function runStep(key, text, state) {
+  const ol = $("#runSteps");
+  ol.hidden = false;
+  if (!ol.children.length) ol.innerHTML = RUN_STEPS.map(([k, t]) => `<li data-step="${k}"><span>${esc(t)}</span> <small class="muted"></small></li>`).join("");
+  const i = RUN_STEPS.findIndex(([k]) => k === key);
+  [...ol.children].forEach((li, j) => {
+    li.className = j < i ? "is-done" : j === i ? (state === "bad" ? "is-bad" : state === "done" ? "is-done" : "is-now") : "";
+  });
+  if (text !== undefined) ol.children[i].querySelector("small").textContent = text;
+}
+function runFail(key, text) { runStep(key, text, "bad"); collector.run = null; $("#runStart").disabled = false; }
+
+function showRunSetup() {
+  $("#runInstall").hidden = collector.ready;
+  $("#runSetup").hidden = !collector.ready;
+}
+function openRun(expo, url) {
+  const s = rows(panels.outreach && panels.outreach.settings)[0] || {};
+  $("#runBox").hidden = false;
+  $("#runBox").dataset.expo = expo.id;
+  $("#runTitle").textContent = `Run · ${expo.name}`;
+  $("#runUrl").textContent = url;
+  $("#runLimit").value = Number(s.companies_per_run) || 25;
+  $("#runSteps").innerHTML = "";
+  $("#runSteps").hidden = true;
+  $("#runStart").disabled = !!collector.run;
+  showRunSetup();
+  if (!collector.ready) pingCollector();
+  $("#runBox").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+$("#runClose").addEventListener("click", () => { $("#runBox").hidden = true; });
+$("#runCheck").addEventListener("click", () => {
+  pingCollector();
+  setTimeout(() => { if (!collector.ready) $("#runCheck").textContent = "Not found yet: reload this page after loading it"; }, 800);
+});
+
+$("#expoRows").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-run-expo]");
+  if (!b) return;
+  const tr = b.closest("[data-expo]");
+  const expo = rows(panels.outreach.expos).find((x) => String(x.id) === tr.dataset.expo);
+  const url = tr.querySelector(".expo-url").value.trim();
+  if (!expo) return;
+  if (!/^https?:\/\/\S+\.\S+/i.test(url)) { tr.querySelector(".expo-url").focus(); return alert("Add the exhibitor list page URL first (the page that lists the exhibitors)."); }
+  openRun(expo, url);
+});
+
+$("#runStart").addEventListener("click", async () => {
+  const expo = rows(panels.outreach.expos).find((x) => String(x.id) === $("#runBox").dataset.expo);
+  if (!expo || collector.run) return;
+  const url = $("#runUrl").textContent;
+  const limit = Math.max(1, Math.min(300, Number($("#runLimit").value) || 25));
+  collector.run = { id: String(Date.now()), expo, url, limit };
+  $("#runStart").disabled = true;
+  $("#runSteps").innerHTML = "";
+  runStep("read", "opening the page in a new tab…");
+  // keep the URL with the expo (and its dates check) for next time
+  if (url !== (expo.exhibitor_list_url || "")) {
+    api("superSaveOutreach", { token: token(), expo: { id: expo.id, exhibitor_list_url: url } }).catch(() => {});
+  }
+  window.postMessage({ source: "em-dashboard", type: "collect", url, runId: collector.run.id }, location.origin);
+});
+
+async function sendCollected(run, res) {
+  const companies = Array.isArray(res.companies) ? res.companies : [];
+  if (!companies.length && !res.text) return runFail("read", "No exhibitors found on that page. Is it the list page itself? You can also paste the list into the import form.");
+  runStep("save", "", "now");
+  $("#runSteps").children[0].querySelector("small").textContent = companies.length
+    ? `${companies.length} exhibitors read${res.total ? ` (the page says ${res.total})` : ""}` : "the cards weren't clear, so Gemini reads the page text";
+  runStep("save", "sending to n8n…");
+  try {
+    const payload = JSON.stringify({ token: token(), expo_name: run.expo.name, source: res.site || "", limit: run.limit, companies, text: res.text || "" });
+    const r = await fetch(COLLECT_HOOK, { method: "POST", body: new URLSearchParams({ payload }) }).then((x) => x.json());
+    if (!r.ok) {
+      return runFail("save", r.error === "not_signed_in" ? "Your sign-in has expired. Sign in again, then Run." : r.error === "unknown_expo" ? "n8n doesn't know this expo's name." : "n8n refused the list: " + (r.error || "unknown"));
+    }
+    const skipped = r.skipped ? ` · ${r.skipped} skipped (media, associations, pavilions)` : "";
+    runStep("save", r.as_text ? "Gemini is picking the companies out of the page text" : `${r.companies} exhibitors sent${skipped}. Ones already saved are kept as they were.`);
+    runStep("people", `Apollo is looking up ${run.limit} companies now, then Gemini writes their lines. People show up below and in Ready to send in a few minutes.`);
+    api("superSaveOutreach", { token: token(), expo: { id: run.expo.id, notes: `Run ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" })}: ${companies.length || "page text"} exhibitors read from the list page.` } }).catch(() => {});
+    watchRun(run);
+  } catch (ex) {
+    runFail("save", "Couldn't reach n8n. Check your connection and Run again.");
+  }
+}
+
+// refresh every 30 s for 15 minutes so the people and emails appear as n8n finds them
+function watchRun(run) {
+  clearInterval(collector.poll);
+  collector.run = null;
+  $("#runStart").disabled = false;
+  let n = 0;
+  const tick = async () => {
+    await loadOutreach();
+    const o = panels.outreach || {};
+    const cos = rows(o.companies).filter((c) => c.expo_name === run.expo.name);
+    const people = rows(o.contacts).filter((c) => c.expo_name === run.expo.name);
+    const ready = people.filter((c) => c.status === "ready").length;
+    const looked = cos.filter((c) => c.status !== "new").length;
+    if (!$("#runBox").hidden) runStep("people", `${looked} of ${cos.length} companies looked up · ${people.length} people found · ${ready} emails ready to send`, ++n >= 30 ? "done" : "now");
+    if (n >= 30) clearInterval(collector.poll);
+  };
+  collector.poll = setInterval(tick, 30000);
+  setTimeout(tick, 8000);
+}

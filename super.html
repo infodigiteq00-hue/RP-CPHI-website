@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="css/style.css?v=20261027-11">
   <link rel="stylesheet" href="css/admin.css?v=20261027-11">
-  <link rel="stylesheet" href="css/super.css?v=20261105-1">
+  <link rel="stylesheet" href="css/super.css?v=20261106-1">
 </head>
 <body class="admin super">
 
@@ -189,6 +189,27 @@
             </form>
           </details>
         </div>
+        <section class="runbox" id="runBox" hidden aria-live="polite">
+          <div class="runbox__head">
+            <div><h3 id="runTitle">Run</h3><small class="muted" id="runUrl"></small></div>
+            <button class="act act--quiet" type="button" id="runClose">Close</button>
+          </div>
+          <div id="runSetup">
+            <p class="hint">Run opens the exhibitor list in a new tab, loads the whole list (it presses "Show more" for you) and reads every exhibitor. Leave that tab open until it's done, about a minute. The list then goes straight to n8n: media, associations and pavilions are skipped, Apollo finds the decision makers, Gemini writes each personal line, and the emails appear in <b>Ready to send</b>.</p>
+            <label class="runbox__num">Apollo look-ups now <input type="number" id="runLimit" min="1" max="300" value="25"> <small class="muted">companies (about 4 Apollo credits each). Run again for the next batch; companies already done are skipped.</small></label>
+            <button class="btn btn--sm" type="button" id="runStart">Start</button>
+          </div>
+          <div id="runInstall" hidden>
+            <p><b>One-time setup:</b> Run needs the small Expo Manager collector added to Chrome.</p>
+            <ol>
+              <li>Open <code>chrome://extensions</code> and switch on <b>Developer mode</b> (top right).</li>
+              <li>Click <b>Load unpacked</b> and choose the <code>expo-collector</code> folder from the Expo Manager files.</li>
+              <li>Reload this page.</li>
+            </ol>
+            <button class="act" type="button" id="runCheck">Check again</button>
+          </div>
+          <ol class="runbox__steps" id="runSteps" hidden></ol>
+        </section>
         <div class="table-wrap">
           <table class="table expo-table">
             <thead><tr><th>Expo</th><th>Dates</th><th>Checked</th><th>Exhibitor list</th><th>Pipeline</th><th></th></tr></thead>
@@ -236,6 +257,6 @@
   <script src="js/config.js?v=20261104-2"></script>
   <script src="js/brand.js?v=20261027-11"></script>
   <script src="js/super.js?v=20261104-1" defer></script>
-  <script src="js/super-panels.js?v=20261105-1" defer></script>
+  <script src="js/super-panels.js?v=20261106-1" defer></script>
 </body>
 </html>

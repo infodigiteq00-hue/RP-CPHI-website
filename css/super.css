@@ -121,6 +121,18 @@
 .expo-table td { min-width: 120px; }
 .expo-url { width: 100%; min-width: 200px; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 14px; }
 .chk { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; white-space: nowrap; }
+.expo-acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.runbox { margin-bottom: 16px; padding: 14px 16px; background: #fff; border: 1px solid var(--navy); border-radius: 8px; font-size: 14px; }
+.runbox__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+.runbox__head h3 { margin: 0; font-size: 16px; color: var(--navy); }
+.runbox__head small { display: block; overflow-wrap: anywhere; }
+.runbox__num { display: block; margin: 10px 0 12px; font-weight: 600; }
+.runbox__num input { width: 80px; height: 34px; margin: 0 6px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+.runbox__num small { display: block; font-weight: 400; margin-top: 4px; }
+.runbox ol { margin: 8px 0; padding-left: 20px; display: grid; gap: 6px; }
+.runbox__steps li.is-now { font-weight: 600; color: var(--navy); }
+.runbox__steps li.is-done { color: var(--ok, #067647); }
+.runbox__steps li.is-bad { color: var(--red); }
 .add-expo { position: relative; }
 .add-expo > summary { list-style: none; display: inline-flex; align-items: center; cursor: pointer; }
 .add-expo > summary::-webkit-details-marker { display: none; }
